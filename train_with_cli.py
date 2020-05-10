@@ -40,12 +40,14 @@ CLASS_NAMES = np.array(
     ['No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR'])
 CLASS_INDEXES = [0, 1, 2, 3, 4]
 
+
 def fetch_data_from_gdrive(project_dir, remote_project_dir, zip_name):
     target_zip = os.path.join(project_dir, zip_name)
     # !mkdir - p "{project_dir}"
     # !cp "{remote_project_dir}/{zip_name}" "{target_zip}"
     # !unzip - q "{target_zip}"
     # !rm "{target_zip}"
+
 
 def init_env():
     args = {}
@@ -62,8 +64,8 @@ def init_env():
         from google.colab import drive
         drive.mount('/content/drive')
 
-        fetch_data_from_gdrive(args['project_dir'], 
-                               args['remote_project_dir'], 
+        fetch_data_from_gdrive(args['project_dir'],
+                               args['remote_project_dir'],
                                'train_processed.zip')
     else:
         parser = argparse.ArgumentParser()
@@ -207,7 +209,7 @@ def prepare_data(dataframe_path, base_image_dir):
 
     train_df, val_df = train_val_split(df)
     # train_df = balancing(train_df) # take the same number of samples as majority category has
-    train_df = balancing(train_df, multipliers={1:10, 2:4, 3:10, 4:10})
+    train_df = balancing(train_df, multipliers={1: 10, 2: 4, 3: 10, 4: 10})
     # train_df = balancing(train_df, counts={0:6000, 1:6000, 2:6000, 3:6000, 4:6000}) # take some samples from each category
     # train_df = shrink_dataset_equally(train_df)
     train_df = shuffle(train_df)
@@ -788,6 +790,7 @@ def create_confusion_matrix(model, dataset, steps, target_names, save_dest=None)
     plot_confusion_matrix(
         true_labels_glob, pred_labels_glob, target_names, save_dest)
     print('Confusion matrix was saved to', save_dest)
+
 
 # Get args
 args = init_env()
