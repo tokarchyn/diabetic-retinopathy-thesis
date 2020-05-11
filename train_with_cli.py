@@ -116,7 +116,11 @@ def train_val_split(df):
 def calc_weights(df):
     level_counts = df['level'].value_counts().sort_index()
     weights = {cls: len(df) / count for cls, count in enumerate(level_counts)}
-    print('Weights for each level:\n', weights)
+    if max(weights.values()) - min(weights.values()) < 0.1:
+        print('Reset weights because they all are the same:', max(weights.values()))
+        weights = None
+    else:
+        print('Weights for each level:\n', weights)
     return weights
 
 
@@ -208,9 +212,9 @@ def prepare_data(dataframe_path, base_image_dir):
 
     train_df, val_df = train_val_split(df)
     # train_df = balancing(train_df) # take the same number of samples as majority category has
-    train_df = balancing(train_df, multipliers={1: 10, 2: 4, 3: 10, 4: 10})
+    # train_df = balancing(train_df, multipliers={1: 10, 2: 4, 3: 10, 4: 10})
     # train_df = balancing(train_df, counts={0:6000, 1:6000, 2:6000, 3:6000, 4:6000}) # take some samples from each category
-    # train_df = shrink_dataset_equally(train_df)
+    train_df = shrink_dataset_equally(train_df)
     train_df = shuffle(train_df)
     weights = calc_weights(train_df)
 
