@@ -214,7 +214,7 @@ def prepare_data(dataframe_path, base_image_dir):
     # train_df = balancing(train_df) # take the same number of samples as majority category has
     # train_df = balancing(train_df, multipliers={1: 10, 2: 4, 3: 10, 4: 10})
     # train_df = balancing(train_df, counts={0:6000, 1:6000, 2:6000, 3:6000, 4:6000}) # take some samples from each category
-    train_df = shrink_dataset_equally(train_df)
+    # train_df = shrink_dataset_equally(train_df)
     train_df = shuffle(train_df)
     weights = calc_weights(train_df)
 
@@ -269,7 +269,7 @@ def zoom(x, img_size):
 
 def augment(dataset, img_size, aug_probability=1):
     def zoom_local(x): return zoom(x, img_size)
-    augmentations = [flip, rotate]
+    augmentations = [flip, rotate, color]
 
     def augment_map(img, level, aug_fun):
         return (aug_fun(img), level)
