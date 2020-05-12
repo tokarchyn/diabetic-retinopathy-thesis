@@ -124,77 +124,32 @@ def calc_weights(df):
     return weights
 
 
-def get_samples_of_level(df, level, count):
-    to_add = []
-    it = iter(df[df['level'] == level].iterrows())
-
-    while count > len(to_add):
-        _, row = None, None
-        try:
-            _, row = next(it)
-        except StopIteration:
-            it = iter(df[df['level'] == level].iterrows())
-            _, row = next(it)
-        to_add.append(copy.deepcopy(row))
-
-    return to_add
-
-# Upsampling and Downsampling based on multiplicator or exact count for each category
-# For example multipliers={0: 2} will take 2 times more samples of category 0 than exist.
-
-
-def balancing(df, multipliers=None, counts=None):
-    max_level_count = df['level'].value_counts().max()
-
+def balance(df, counts):
+    new_df = df.iloc[0:0] # copy only structure
     for level in df['level'].unique():
-        count_of_level = df[df['level'] == level].count()[0]
+        df_level = df[df['level'] == level]
+        count = len(df_level)
+        new_count = counts[level] if level in counts else count
+        if count > new_count:
+            new_df = new_df.append(
+                df_level.drop(df_level.sample(count - new_count).index), 
+                ignore_index=True)
+        elif count < new_count:
+            new_df = new_df.append(df_level, ignore_index=True)
+            new_df = new_df.append(df_level.sample(new_count - count, replace=True), ignore_index=True)
+    
+    print('New counts of dataset\'s categories: ', json.dumps(new_df['level'].value_counts().to_dict()))
+    return new_df
 
-        count_diff = 0
-        if multipliers != None:
-            if level in multipliers:
-                count_diff = int(count_of_level *
-                                 multipliers[level]) - count_of_level
-        elif counts != None:
-            if level in counts:
-                count_diff = counts[level] - count_of_level
-        else:
-            if count_of_level == max_level_count:
-                continue
-            count_diff = max_level_count - count_of_level
-
-        if count_diff == 0:
-            continue
-        print('Need to add(or remove)', count_diff, 'copies of level',
-              level, 'where count of level is', count_of_level)
-        if count_diff < 0:
-            df_level = df[df['level'] == level]
-            df = df.drop(df_level.sample(count_diff * -1).index)
-        else:
-            df = df.append(get_samples_of_level(
-                df, level, count_diff), ignore_index=True)
-
-    return df
-
-
-def shrink_dataset_equally(df, number_of_each_level=None):
-    levels = df['level'].unique()
-
-    if number_of_each_level is None:
-        number_of_each_level = df['level'].value_counts().min()
-
-    def get_rows(df_tmp):
-        size = len(df_tmp)
-        return df_tmp.sample(number_of_each_level) if size >= number_of_each_level else df_tmp
-
-    df_tmp = get_rows(df[df['level'] == levels[0]])
-    for l in levels[1:]:
-        df_tmp = df_tmp.append(
-            get_rows(df[df['level'] == l]), ignore_index=True)
-    return df_tmp
-
-
-def shrink_dataset(df, count):
-    return df[:count]
+def balance_with_mode(df, mode='max'):
+    counts = df['level'].value_counts()
+    new_count = 0
+    if mode == 'max':
+        new_count = counts.max()
+    elif mode == 'min':
+        new_count = counts.min()
+    new_counts_dict = {level: new_count for level in df['level'].unique()}
+    return balance(df, counts=new_counts_dict)
 
 
 def shuffle(df):
@@ -211,10 +166,9 @@ def prepare_data(dataframe_path, base_image_dir):
     # df = shrink_dataset(df, 1000)
 
     train_df, val_df = train_val_split(df)
-    # train_df = balancing(train_df) # take the same number of samples as majority category has
-    # train_df = balancing(train_df, multipliers={1: 10, 2: 4, 3: 10, 4: 10})
+    train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
     # train_df = balancing(train_df, counts={0:6000, 1:6000, 2:6000, 3:6000, 4:6000}) # take some samples from each category
-    # train_df = shrink_dataset_equally(train_df)
+    # train_df = balance_with_mode(train_df, mode='min') # take the same number of samples as minority category has
     train_df = shuffle(train_df)
     weights = calc_weights(train_df)
 
@@ -235,16 +189,16 @@ def flip(x):
 
 
 def color(x):
-    x = tf.image.random_hue(x, 0.06)
-    x = tf.image.random_saturation(x, 0.8, 1.2)
+    x = tf.image.random_hue(x, 0.04)
+    x = tf.image.random_saturation(x, 0.9, 1.1)
     x = tf.image.random_brightness(x, 0.04)
-    x = tf.image.random_contrast(x, 0.8, 1.2)
+    x = tf.image.random_contrast(x, 0.9, 1.1)
     return x
 
 
 def zoom(x, img_size):
     # Generate 20 crop settings, ranging from a 1% to 10% crop.
-    scales = list(np.arange(0.8, 1, 0.01))
+    scales = list(np.arange(0.9, 1, 0.01))
     boxes = np.zeros((len(scales), 4))
 
     for i, scale in enumerate(scales):
@@ -269,7 +223,7 @@ def zoom(x, img_size):
 
 def augment(dataset, img_size, aug_probability=1):
     def zoom_local(x): return zoom(x, img_size)
-    augmentations = [flip, rotate, color]
+    augmentations = [flip, rotate, color, zoom_local]
 
     def augment_map(img, level, aug_fun):
         return (aug_fun(img), level)
@@ -495,7 +449,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(
             monitor='val_loss',
             factor=0.8,
-            patience=3,
+            patience=10,
             verbose=1,
             mode='auto',
             epsilon=0.0001,
@@ -889,8 +843,9 @@ def get_inception_v3(train_ds, train_steps, weights, freeze_layers_number, input
 
     # let's add a fully-connected layer
     x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation='relu')(x)
-    x = Dropout(0.5)(x)
+    # x = Dense(1024, activation='relu')(x)
+    # x = Dropout(0.5)(x)
+    # model.add(Flatten())
     predictions = Dense(len(CLASS_NAMES), activation='softmax')(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)
@@ -966,12 +921,12 @@ def get_all_cnn_model(input_shape):
 
 
 def train(model, train_ds, train_steps, val_ds, val_steps,
-          experiment_dir, weights=None):
+          experiment_dir, epochs, weights=None):
     print('Start training.')
     history = model.fit(train_ds, steps_per_epoch=train_steps,
                         validation_data=val_ds, validation_steps=val_steps,
                         class_weight=weights,
-                        epochs=50,
+                        epochs=epochs,
                         callbacks=get_callbacks(
                             save_best_models=False,
                             best_models_dir=os.path.join(
@@ -1013,6 +968,7 @@ train_ds, train_count, val_ds, val_count = create_datasets(
     val_df=val_df,
     img_size=args['img_size'],
     batch_size=args['batch_size'])
+train_steps = 5000 // args['batch_size'] #train_count // args['batch_size']
 
 # Create model
 input_shape = get_input_shape(args['img_size'])
@@ -1025,7 +981,7 @@ except:
 # model = get_alex_model(input_shape)
 model = get_inception_v3(
     train_ds=train_ds,
-    train_steps=train_count // args['batch_size'],
+    train_steps=train_steps,
     weights=weights,
     freeze_layers_number=172,
     input_shape=input_shape)
@@ -1037,10 +993,11 @@ experiment_dir = os.path.join(args['experiments_dir'],
                               datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 history = train(model=model,
                 train_ds=train_ds,
-                train_steps=train_count // args['batch_size'],
+                train_steps=train_steps,
                 val_ds=val_ds,
                 val_steps=val_count // args['batch_size'],
                 experiment_dir=experiment_dir,
+                epochs=500,
                 weights=weights)
 
 # Validate
