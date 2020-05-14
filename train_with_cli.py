@@ -59,6 +59,7 @@ def init_env():
             args['remote_project_dir'], 'trainLabels.csv')
         args['experiments_dir'] = os.path.join(
             args['remote_project_dir'], 'experiments')
+        args['quality_dataset_path'] = 'image_quality.csv'
 
         from google.colab import drive
         drive.mount('/content/drive')
@@ -67,14 +68,22 @@ def init_env():
                                args['remote_project_dir'],
                                'train_processed.zip')
     else:
+        old_argv = sys.argv
+        if sys.argv[-1].endswith('json'):
+            sys.argv = ['']
         parser = argparse.ArgumentParser()
-        parser.add_argument('--image_dir', type=str)
-        parser.add_argument('--dataframe_path', type=str)
-        parser.add_argument('--experiments_dir', type=str)
+        parser.add_argument('--image_dir', type=str, default='train_processed')
+        parser.add_argument('--dataframe_path', type=str,
+                            default='trainLabels.csv')
+        parser.add_argument('--quality_dataset_path',
+                            type=str, default='image_quality.csv')
+        parser.add_argument('--experiments_dir', type=str,
+                            default='experiments')
         parsed_args = parser.parse_args()
         args = vars(parsed_args)
+        sys.argv = old_argv
 
-    args['img_size'] = 299
+    args['img_size'] = 512
     args['batch_size'] = 32
     print('Arguments:', json.dumps(args))
     return args
@@ -125,21 +134,24 @@ def calc_weights(df):
 
 
 def balance(df, counts):
-    new_df = df.iloc[0:0] # copy only structure
+    new_df = df.iloc[0:0]  # copy only structure
     for level in df['level'].unique():
         df_level = df[df['level'] == level]
         count = len(df_level)
         new_count = counts[level] if level in counts else count
         if count > new_count:
             new_df = new_df.append(
-                df_level.drop(df_level.sample(count - new_count).index), 
+                df_level.drop(df_level.sample(count - new_count).index),
                 ignore_index=True)
         elif count < new_count:
             new_df = new_df.append(df_level, ignore_index=True)
-            new_df = new_df.append(df_level.sample(new_count - count, replace=True), ignore_index=True)
-    
-    print('New counts of dataset\'s categories: ', json.dumps(new_df['level'].value_counts().to_dict()))
+            new_df = new_df.append(df_level.sample(
+                new_count - count, replace=True), ignore_index=True)
+
+    print('New counts of dataset\'s categories: ', json.dumps(
+        new_df['level'].value_counts().to_dict()))
     return new_df
+
 
 def balance_with_mode(df, mode='max'):
     counts = df['level'].value_counts()
@@ -157,7 +169,17 @@ def shuffle(df):
     return df
 
 
-def prepare_data(dataframe_path, base_image_dir):
+def exclude_by_quality(df, quality_dataset_path):
+    quality_dict = pd.read_csv(quality_dataset_path, index_col='image_name')[
+        'quality'].to_dict()
+    select = df['image_path'].apply(lambda p: Path(
+        p).stem not in quality_dict or quality_dict[Path(p).stem] == 0)
+    print('Images to exclude:', len(select[select == False]))
+    df = df.loc[select]
+    return df
+
+
+def prepare_data(dataframe_path, base_image_dir, quality_dataset_path):
     if not os.path.exists(base_image_dir):
         raise NameError('Base image path doesnt exist', base_image_dir)
     df = load_df(dataframe_path, base_image_dir)
@@ -166,8 +188,11 @@ def prepare_data(dataframe_path, base_image_dir):
     # df = shrink_dataset(df, 1000)
 
     train_df, val_df = train_val_split(df)
-    train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
-    # train_df = balancing(train_df, counts={0:6000, 1:6000, 2:6000, 3:6000, 4:6000}) # take some samples from each category
+    train_df = exclude_by_quality(train_df, quality_dataset_path)
+    # train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
+    # take some samples from each category
+    train_df = balance(train_df, counts={
+                       0: 6000, 1: 6000, 2: 6000, 3: 6000, 4: 6000})
     # train_df = balance_with_mode(train_df, mode='min') # take the same number of samples as minority category has
     train_df = shuffle(train_df)
     weights = calc_weights(train_df)
@@ -269,7 +294,7 @@ def process_path(file_path, level, img_size):
     return img, label
 
 
-def prepare(ds, shuffle_buffer_size=1000):
+def prepare(ds, shuffle_buffer_size=200):
     ds = ds.map(lambda img, level: (tf.image.per_image_standardization(img), level),
                 num_parallel_calls=AUTOTUNE)
     ds = ds.shuffle(buffer_size=shuffle_buffer_size)
@@ -358,10 +383,10 @@ def plot_f1(metrics, save_dest=None):
     plt.close(fig)
 
     plot_metric({
-      "f1_score_average":np.array(metrics['f1_score']).mean(axis=1),
-      "val_f1_score_average":np.array(metrics['val_f1_score']).mean(axis=1)},
-      'f1_score_average',
-      save_dest)
+        "f1_score_average": np.array(metrics['f1_score']).mean(axis=1),
+        "val_f1_score_average": np.array(metrics['val_f1_score']).mean(axis=1)},
+        'f1_score_average',
+        save_dest)
 
 
 def plot_confusion_matrix(true_lables, pred_labels, target_names, save_dest=None):
@@ -467,6 +492,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
 def top_2_accuracy(in_gt, in_pred):
     return tf.keras.metrics.top_k_categorical_accuracy(in_gt, in_pred, k=2)
 
+
 class FBetaScore(tf.keras.metrics.Metric):
     """Computes F-Beta score.
     It is the weighted harmonic mean of precision
@@ -506,11 +532,11 @@ class FBetaScore(tf.keras.metrics.Metric):
     def __init__(
         self,
         num_classes,
-        average = None,
-        beta = 1.0,
-        threshold = None,
-        name = "fbeta_score",
-        dtype = None,
+        average=None,
+        beta=1.0,
+        threshold=None,
+        name="fbeta_score",
+        dtype=None,
         **kwargs
     ):
         super().__init__(name=name, dtype=dtype)
@@ -529,7 +555,8 @@ class FBetaScore(tf.keras.metrics.Metric):
 
         if threshold is not None:
             if not isinstance(threshold, float):
-                raise TypeError("The value of threshold should be a python float")
+                raise TypeError(
+                    "The value of threshold should be a python float")
             if threshold > 1.0 or threshold <= 0.0:
                 raise ValueError("threshold should be between 0 and 1")
 
@@ -561,7 +588,8 @@ class FBetaScore(tf.keras.metrics.Metric):
             threshold = tf.reduce_max(y_pred, axis=-1, keepdims=True)
             # make sure [0, 0, 0] doesn't become [1, 1, 1]
             # Use abs(x) > eps, instead of x != 0 to check for zero
-            y_pred = tf.logical_and(y_pred >= threshold, tf.abs(y_pred) > 1e-12)
+            y_pred = tf.logical_and(
+                y_pred >= threshold, tf.abs(y_pred) > 1e-12)
         else:
             y_pred = y_pred > self.threshold
 
@@ -592,7 +620,8 @@ class FBetaScore(tf.keras.metrics.Metric):
 
         if self.average == "weighted":
             weights = tf.math.divide_no_nan(
-                self.weights_intermediate, tf.reduce_sum(self.weights_intermediate)
+                self.weights_intermediate, tf.reduce_sum(
+                    self.weights_intermediate)
             )
             f1_score = tf.reduce_sum(f1_score * weights)
 
@@ -621,6 +650,7 @@ class FBetaScore(tf.keras.metrics.Metric):
         self.false_positives.assign(tf.zeros(self.init_shape, self.dtype))
         self.false_negatives.assign(tf.zeros(self.init_shape, self.dtype))
         self.weights_intermediate.assign(tf.zeros(self.init_shape, self.dtype))
+
 
 class F1Score(FBetaScore):
     """Computes F-1 Score.
@@ -656,10 +686,10 @@ class F1Score(FBetaScore):
     def __init__(
         self,
         num_classes,
-        average = None,
-        threshold = None,
-        name = "f1_score",
-        dtype = None,
+        average=None,
+        threshold=None,
+        name="f1_score",
+        dtype=None,
         **kwargs
     ):
         super().__init__(num_classes, average, 1.0, threshold, name=name, dtype=dtype)
@@ -668,6 +698,7 @@ class F1Score(FBetaScore):
         base_config = super().get_config()
         del base_config["beta"]
         return base_config
+
 
 def get_metrics():
     return ['accuracy', F1Score(len(CLASS_INDEXES)), top_2_accuracy]
@@ -833,19 +864,14 @@ def get_inception_v3(train_ds, train_steps, weights, freeze_layers_number, input
                              include_top=False,
                              input_shape=input_shape)
     x = base_model.output
-    # x = Dropout(0.5)(x)
-    # x = BatchNormalization()(x)
+    x = Dropout(0.5)(x)
+    x = BatchNormalization()(x)
 
-    # x = Conv2D(256, (3, 3), strides=1,  padding = "same", activation = "relu")(x)
-    # x = Conv2D(256, (3, 3), strides=1,  padding = "same", activation = "relu")(x)
-    # x = MaxPooling2D((3, 3), strides=2)(x)
-    # x = BatchNormalization()(x)
-
-    # let's add a fully-connected layer
     x = GlobalAveragePooling2D()(x)
-    # x = Dense(1024, activation='relu')(x)
-    # x = Dropout(0.5)(x)
-    # model.add(Flatten())
+    x = Dense(1024, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    x = Dense(1024, activation='relu')(x)
+    x = Dropout(0.5)(x)
     predictions = Dense(len(CLASS_NAMES), activation='softmax')(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)
@@ -962,13 +988,13 @@ args = init_env()
 
 # Create input objects
 train_df, val_df, weights = prepare_data(
-    args['dataframe_path'], args['image_dir'])
+    args['dataframe_path'], args['image_dir'], args['quality_dataset_path'])
 train_ds, train_count, val_ds, val_count = create_datasets(
     train_df=train_df,
     val_df=val_df,
     img_size=args['img_size'],
     batch_size=args['batch_size'])
-train_steps = 5000 // args['batch_size'] #train_count // args['batch_size']
+train_steps = 5000 // args['batch_size']  # train_count // args['batch_size']
 
 # Create model
 input_shape = get_input_shape(args['img_size'])

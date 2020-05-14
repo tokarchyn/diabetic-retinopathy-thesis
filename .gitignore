@@ -1,6 +1,5 @@
-/train
-/train_processed
 /trainLabels.csv
 /Logs
 /.vscode
 /.ipynb_checkpoints
+/data
