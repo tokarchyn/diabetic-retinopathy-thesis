@@ -1,6 +1,7 @@
 import tensorflow as tf
 from matplotlib import pyplot as plt
 from .plots import *
+from tensorflow.keras import backend as K
 
 class TrainingHistoryCallback(tf.keras.callbacks.Callback):
     def __init__(self, metrics, class_names, save_weights=True, metrics_plot_dir=None):
@@ -16,7 +17,10 @@ class TrainingHistoryCallback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         if logs is not None:
             for key in self.metrics.keys():
-                self.metrics[key].append(logs.get(key))
+                if key == 'lr':
+                    self.metrics[key].append(K.get_value(self.model.optimizer.lr))
+                else:
+                    self.metrics[key].append(logs.get(key))
 
         if self.metrics_plot_dir:
             for key in self.metrics.keys():

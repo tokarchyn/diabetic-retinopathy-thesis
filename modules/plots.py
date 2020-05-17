@@ -24,8 +24,6 @@ def plot_metric(metrics, metric_name, save_dest=None):
 
 
 def plot_f1(metrics, class_names, save_dest=None):
-    print('Plot f1 scores. Metrics:', metrics)
-    
     fig, m_axs = plt.subplots(2, 1, figsize=(12, 16))
 
     m_axs[0].plot(metrics['f1_score'])
