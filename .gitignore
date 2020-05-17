@@ -2,4 +2,4 @@
 /Logs
 /.vscode
 /.ipynb_checkpoints
-/data
+__pycache__
