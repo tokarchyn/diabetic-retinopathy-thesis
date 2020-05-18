@@ -60,6 +60,7 @@ def init_env():
         args['experiments_dir'] = os.path.join(
             args['remote_project_dir'], 'experiments')
         args['quality_dataset_path'] = None
+        args['model'] = 'inception'
 
         from google.colab import drive
         drive.mount('/content/drive')
@@ -81,6 +82,8 @@ def init_env():
                             default='experiments')
         parser.add_argument('--gpu_id', type=str,
                             default=None)
+        parser.add_argument('--model', type=str,
+                            default='inception')
         parsed_args = parser.parse_args()
         args = vars(parsed_args)
         sys.argv = old_argv
@@ -89,11 +92,27 @@ def init_env():
         os.environ["CUDA_VISIBLE_DEVICES"]=args['gpu_id']
         tf_device='/gpu:0'
 
-    args['img_size'] = 299
+    args['img_size'] = 512
     args['batch_size'] = 16
     args['learning_rate'] = 0.00005
     print('Arguments:', json.dumps(args))
     return args
+
+def is_jsonable(x):
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False
+
+def create_experiment(params, args):
+    experiment_dir = os.path.join(args['experiments_dir'],
+                                datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    Path(experiment_dir).mkdir(parents=True, exist_ok=True)
+    params_to_log = {k: v if is_jsonable(v) else str(v) for k, v in {**params, **args}.items()}
+    print(json.dumps(params_to_log), 
+        file=open(os.path.join(experiment_dir, 'params.json'), 'w+'))
+    return experiment_dir
 
 # Methods to process dataframe
 
@@ -179,8 +198,7 @@ def shuffle(df):
 def exclude_by_quality(df, quality_dataset_path):
     quality_dict = pd.read_csv(quality_dataset_path, index_col='image_name')[
         'quality'].to_dict()
-    select = df['image_path'].apply(lambda p: Path(
-        p).stem not in quality_dict or quality_dict[Path(p).stem] == 0)
+    select = df['image_path'].apply(lambda p: Path(p).stem not in quality_dict or quality_dict[Path(p).stem] == 0)
     print('Images to exclude:', len(select[select == False]))
     df = df.loc[select]
     return df
@@ -197,9 +215,9 @@ def prepare_data(dataframe_path, base_image_dir, quality_dataset_path=None):
     train_df, val_df = train_val_split(df)
     if quality_dataset_path is not None:
         train_df = exclude_by_quality(train_df, quality_dataset_path)
-    # train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
     # take some samples from each category
     # train_df = balance(train_df, counts={0: 6000, 1: 6000, 2: 6000, 3: 6000, 4: 6000})
+    train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
     # train_df = balance_with_mode(train_df, mode='min') # take the same number of samples as minority category has
     train_df = shuffle(train_df)
     weights = calc_weights(train_df)
@@ -236,8 +254,7 @@ def process_path(file_path, level, img_size):
 
 
 def prepare(ds, shuffle_buffer_size=200):
-    # ds = ds.map(lambda img, level: (tf.image.per_image_standardization(img), level),
-    #             num_parallel_calls=AUTOTUNE)
+    # scale pixels between -1 and 1
     ds = ds.map(lambda img, level: (tf.keras.applications.inception_v3.preprocess_input(img), level),
                 num_parallel_calls=AUTOTUNE)
     ds = ds.shuffle(buffer_size=shuffle_buffer_size)
@@ -286,7 +303,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         Path(best_models_dir).mkdir(parents=True, exist_ok=True)
         callbacks.append(tf.keras.callbacks.ModelCheckpoint(
             os.path.join(
-                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}-f1_{val_f1_score}.hdf5'),
+                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}.hdf5'),
             monitor='val_accuracy',
             verbose=0,
             save_best_only=True,
@@ -312,13 +329,14 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         callbacks.append(TrainingHistoryCallback(
             ['loss', 'accuracy', 'f1_score', 'lr'],
             metrics_plot_dir = metrics_plot_dir,
+            save_weights = False,
             class_names = class_names))
     if cyclic_lr:
         callbacks.append(CyclicLR(
-            mode='triangular2',
+            mode='triangular',
             base_lr=1e-2,
-            max_lr=1e-7,
-            step_size= cyclic_lr_step_size))
+            max_lr=1e-6,
+            step_size= 4 * cyclic_lr_step_size)) # recommended coeficient is from 2 to 8
 
     return callbacks
 
@@ -342,7 +360,7 @@ def train(model, train_ds, train_steps, val_ds, val_steps,
                         class_weight=weights,
                         epochs=epochs,
                         callbacks=get_callbacks(
-                            save_best_models=False,
+                            save_best_models=True,
                             best_models_dir=os.path.join(
                                 experiment_dir, 'models'),
                             early_stopping=False,
@@ -392,28 +410,31 @@ params = {
     'input_shape': get_input_shape(args['img_size']),
     'class_number': len(CLASS_NAMES),
     'metrics': get_metrics(),
-    'lr': args['learning_rate']
+    'lr': args['learning_rate'],
+    'activation': tf.keras.layers.LeakyReLU(alpha=0.3)
 }
 try:
     del model
 except:
     print('There is no model defined')
-# model = get_model(**params)
-# model = get_vgg_model(**params)
-# model = get_alex_model(**params)
-model = get_inception_v3(
-    **params,
-    train_ds = train_ds,
-    train_steps = train_steps,
-    weights = weights,
-    freeze_layers_number = 172,#249
-    )
-# model = get_all_cnn_model(**params)
+
+models_collection = {
+    'inception': lambda p: get_inception_v3(
+        **p,
+        train_ds = train_ds,
+        train_steps = train_steps,
+        weights = weights,
+        freeze_layers_number = 172,#249
+        ),
+    'vgg': lambda p: get_vgg_model(**p),
+    'alex': lambda p: get_alex_model(**p),
+    'all_cnn': lambda p: get_all_cnn_model(**p)
+}
+model = models_collection[args['model']](params)
 # model.summary()
 
 # Train
-experiment_dir = os.path.join(args['experiments_dir'],
-                              datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+experiment_dir = create_experiment(params, args)
 history = train(model=model,
                 train_ds=train_ds,
                 train_steps=train_steps,

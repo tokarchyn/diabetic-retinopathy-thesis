@@ -4,7 +4,7 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.models import Sequential
 from tensorflow.keras import Model
 
-def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers_number, input_shape, metrics, lr):
+def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers_number, input_shape, metrics, lr, activation='relu'):
     # create the base pre-trained model
     base_model = InceptionV3(weights='imagenet',
                              include_top=False,
@@ -14,9 +14,9 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
     x = BatchNormalization()(x)
 
     x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation='relu')(x)
+    x = Dense(1024, activation=activation)(x)
     x = Dropout(0.5)(x)
-    x = Dense(1024, activation='relu')(x)
+    x = Dense(1024, activation=activation)(x)
     x = Dropout(0.5)(x)
     predictions = Dense(class_number, activation='softmax')(x)
 
