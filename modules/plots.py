@@ -16,6 +16,10 @@ def plot_metric(metrics, metric_name, save_dest=None):
     plt.title(metric_name)
     plt.ylabel(metric_name)
     plt.xlabel('epoch')
+
+    if metric_name == 'loss':
+        plt.ylim(top=10, bottom=0) 
+
     if save_dest:
         plt.savefig(os.path.join(save_dest, metric_name + '.png'))
     else:

@@ -61,6 +61,9 @@ def init_env():
             args['remote_project_dir'], 'experiments')
         args['quality_dataset_path'] = None
         args['model'] = 'inception'
+        args['cyclic_lr'] = True
+        args['balance_mode'] = None
+        args['augment'] = True
 
         from google.colab import drive
         drive.mount('/content/drive')
@@ -84,6 +87,10 @@ def init_env():
                             default=None)
         parser.add_argument('--model', type=str,
                             default='inception')
+        parser.add_argument('--cyclic_lr', action='store_true')
+        parser.add_argument('--augment', action='store_true')
+        parser.add_argument('--balance_mode', type=str,
+                            default=None)
         parsed_args = parser.parse_args()
         args = vars(parsed_args)
         sys.argv = old_argv
@@ -173,6 +180,8 @@ def balance(df, counts):
             new_df = new_df.append(df_level, ignore_index=True)
             new_df = new_df.append(df_level.sample(
                 new_count - count, replace=True), ignore_index=True)
+        else:
+            new_df = new_df.append(df_level, ignore_index=True)
 
     print('New counts of dataset\'s categories: ', json.dumps(
         new_df['level'].value_counts().to_dict()))
@@ -204,7 +213,7 @@ def exclude_by_quality(df, quality_dataset_path):
     return df
 
 
-def prepare_data(dataframe_path, base_image_dir, quality_dataset_path=None):
+def prepare_data(dataframe_path, base_image_dir, quality_dataset_path=None, balance_mode = None):
     if not os.path.exists(base_image_dir):
         raise NameError('Base image path doesnt exist', base_image_dir)
     df = load_df(dataframe_path, base_image_dir)
@@ -216,9 +225,15 @@ def prepare_data(dataframe_path, base_image_dir, quality_dataset_path=None):
     if quality_dataset_path is not None:
         train_df = exclude_by_quality(train_df, quality_dataset_path)
     # take some samples from each category
-    # train_df = balance(train_df, counts={0: 6000, 1: 6000, 2: 6000, 3: 6000, 4: 6000})
-    train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
-    # train_df = balance_with_mode(train_df, mode='min') # take the same number of samples as minority category has
+
+    if balance_mode == 'max':
+        train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
+    elif balance_mode == 'min':
+        train_df = balance_with_mode(train_df, mode='min') # take the same number of samples as minority category has
+    elif balance_mode is not None:
+        # try parse count
+        count = int(balance_mode)
+        train_df = balance(train_df, counts={0: count, 1: count, 2: count, 3: count, 4: count})
     train_df = shuffle(train_df)
     weights = calc_weights(train_df)
 
@@ -255,8 +270,8 @@ def process_path(file_path, level, img_size):
 
 def prepare(ds, shuffle_buffer_size=200):
     # scale pixels between -1 and 1
-    ds = ds.map(lambda img, level: (tf.keras.applications.inception_v3.preprocess_input(img), level),
-                num_parallel_calls=AUTOTUNE)
+    # ds = ds.map(lambda img, level: (tf.keras.applications.inception_v3.preprocess_input(img), level),
+    #             num_parallel_calls=AUTOTUNE)
     ds = ds.shuffle(buffer_size=shuffle_buffer_size)
     ds = ds.repeat()
     ds = ds.prefetch(buffer_size=AUTOTUNE)
@@ -269,7 +284,7 @@ def dataset_from_tensor_slices(df):
         df['level'].to_numpy(copy=True)))
 
 
-def create_datasets(train_df, val_df, img_size, batch_size):
+def create_datasets(train_df, val_df, img_size, batch_size, augment_lambda=None):
     train_ds = dataset_from_tensor_slices(train_df)
     val_ds = dataset_from_tensor_slices(val_df)
 
@@ -277,7 +292,9 @@ def create_datasets(train_df, val_df, img_size, batch_size):
         file_path, level, img_size)
 
     train_ds = train_ds.map(process_path_local, num_parallel_calls=AUTOTUNE)
-    train_ds = augment(train_ds, img_size, flip=True, color=True, zoom=True, rotate=True)
+    if augment_lambda is not None:
+        print('Add data augmentation')
+        train_ds = augment_lambda(train_ds)
     train_ds = prepare(train_ds)
     train_ds = train_ds.batch(batch_size)
 
@@ -303,16 +320,16 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         Path(best_models_dir).mkdir(parents=True, exist_ok=True)
         callbacks.append(tf.keras.callbacks.ModelCheckpoint(
             os.path.join(
-                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}.hdf5'),
-            monitor='val_accuracy',
+                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}-f1_{val_f1_score:.2f}.hdf5'),
+            monitor='val_f1_score',
             verbose=0,
             save_best_only=True,
             save_weights_only=False,
             mode='auto'))
     if early_stopping:
         callbacks.append(tf.keras.callbacks.EarlyStopping(
-            monitor='val_accuracy',
-            patience=20,
+            monitor='val_f1_score',
+            patience=30,
             restore_best_weights=True))
     if reduce_lr_on_plateau:
         callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(
@@ -334,7 +351,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
     if cyclic_lr:
         callbacks.append(CyclicLR(
             mode='triangular',
-            base_lr=1e-2,
+            base_lr=1e-3,
             max_lr=1e-6,
             step_size= 4 * cyclic_lr_step_size)) # recommended coeficient is from 2 to 8
 
@@ -352,24 +369,13 @@ def get_metrics():
 # Train and validation
 
 
-def train(model, train_ds, train_steps, val_ds, val_steps,
-          experiment_dir, epochs, weights=None):
+def train(model, train_ds, train_steps, val_ds, val_steps, epochs, callbacks, weights=None):
     print('Start training.')
     history = model.fit(train_ds, steps_per_epoch=train_steps,
                         validation_data=val_ds, validation_steps=val_steps,
                         class_weight=weights,
                         epochs=epochs,
-                        callbacks=get_callbacks(
-                            save_best_models=True,
-                            best_models_dir=os.path.join(
-                                experiment_dir, 'models'),
-                            early_stopping=False,
-                            reduce_lr_on_plateau=False,
-                            training_history=True,
-                            metrics_plot_dir=experiment_dir,
-                            cyclic_lr=True,
-                            cyclic_lr_step_size=train_steps,
-                            class_names=CLASS_NAMES)
+                        callbacks=callbacks
                         )
     print('Training finished.')
     return history
@@ -397,12 +403,19 @@ args = init_env()
 
 # Create input objects
 train_df, val_df, weights = prepare_data(
-    args['dataframe_path'], args['image_dir'], args['quality_dataset_path'])
+    args['dataframe_path'], args['image_dir'], args['quality_dataset_path'], args['balance_mode'])
+
+augment_lambda = None
+if args['augment']:
+    augment_lambda = lambda ds: augment(ds, args['img_size'], flip=True, hue=True, saturation=True, 
+        brighness=True, contrast=True, zoom=True, rotate=True)
+
 train_ds, train_count, val_ds, val_count = create_datasets(
     train_df=train_df,
     val_df=val_df,
     img_size=args['img_size'],
-    batch_size=args['batch_size'])
+    batch_size=args['batch_size'],
+    augment_lambda = augment_lambda)
 train_steps = 5000 // args['batch_size']  # train_count // args['batch_size']
 
 # Create model
@@ -435,14 +448,23 @@ model = models_collection[args['model']](params)
 
 # Train
 experiment_dir = create_experiment(params, args)
+callbacks = get_callbacks(save_best_models=True,
+                          best_models_dir=os.path.join(experiment_dir, 'models'),
+                          early_stopping=False,
+                          reduce_lr_on_plateau=False,
+                          training_history=True,
+                          metrics_plot_dir=experiment_dir,
+                          cyclic_lr=args['cyclic_lr'],
+                          cyclic_lr_step_size=train_steps,
+                          class_names=CLASS_NAMES)
 history = train(model=model,
                 train_ds=train_ds,
                 train_steps=train_steps,
                 val_ds=val_ds,
                 val_steps=val_count // args['batch_size'],
-                experiment_dir=experiment_dir,
                 epochs=500,
-                weights=weights)
+                weights=weights,
+                callbacks=callbacks)
 
 # Validate
 create_confusion_matrix(model, val_ds, val_count //

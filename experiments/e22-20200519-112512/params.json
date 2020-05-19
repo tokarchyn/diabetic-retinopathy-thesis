@@ -1,0 +1,23 @@
+{
+    "balance_mode": "min",
+    "lr": 5e-05,
+    "gpu_id": "0",
+    "img_size": 512,
+    "learning_rate": 5e-05,
+    "metrics": "['accuracy', <modules.f_score.F1Score object at 0x7f4a1391cba8>, <function top_2_accuracy at 0x7f4a13be5ea0>]",
+    "batch_size": 16,
+    "class_number": 5,
+    "augment": false,
+    "image_dir": "/mnt/dr_data/train_processed/",
+    "cyclic_lr": true,
+    "activation": "<tensorflow.python.keras.layers.advanced_activations.LeakyReLU object at 0x7f4a1391cb00>",
+    "dataframe_path": "data/train_labels_full.csv",
+    "quality_dataset_path": null,
+    "model": "vgg",
+    "experiments_dir": "experiments",
+    "input_shape": [
+        512,
+        512,
+        3
+    ]
+}

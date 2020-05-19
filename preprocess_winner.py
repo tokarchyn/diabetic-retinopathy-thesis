@@ -2,10 +2,12 @@ import cv2
 import os
 import glob
 from tqdm import tqdm
+from pathlib import Path
+import numpy as np
+import sys
 
-BASE_DIR = os.path.abspath('/mnt/dr_data/cropped')
-OUT_DIR = os.path.abspath('/mnt/dr_data/clahe')
-IMG_SIZE = 800
+BASE_DIR = os.path.abspath('/mnt/dr_data/test')
+OUT_DIR = os.path.abspath('/mnt/dr_data/winner')
 images_paths = [os.path.basename(path) for path in glob.glob(BASE_DIR + '/*')]
 
 def load_img(filename):
@@ -35,6 +37,7 @@ def process_img(img_name):
     img = winner_processing(img)
     return img
 
+Path(OUT_DIR).mkdir(parents=True, exist_ok=True)
 for img_path in tqdm(images_paths):
     try:
         img = process_img(img_path)
@@ -43,4 +46,4 @@ for img_path in tqdm(images_paths):
         print('You cancelled the operation.')
         break
     except:
-        print('The error occured during processing image:', img_path)
+        print('The error occured during processing image:', img_path, '.', sys.exc_info()[0])

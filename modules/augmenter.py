@@ -13,17 +13,9 @@ def apply_flip(x):
     return x
 
 
-def apply_color(x):
-    x = tf.image.random_hue(x, 0.04)
-    x = tf.image.random_saturation(x, 0.9, 1.1)
-    x = tf.image.random_brightness(x, 0.04)
-    x = tf.image.random_contrast(x, 0.9, 1.1)
-    return x
-
-
 def apply_zoom(x, img_size):
     # Generate 20 crop settings, ranging from a 1% to 10% crop.
-    scales = list(np.arange(0.8, 1, 0.01))
+    scales = list(np.arange(0.9, 1, 0.01))
     boxes = np.zeros((len(scales), 4))
 
     for i, scale in enumerate(scales):
@@ -46,14 +38,21 @@ def apply_zoom(x, img_size):
     return tf.cond(choice < 0.5, lambda: x, lambda: random_crop(x))
 
 
-def augment(dataset, img_size, flip=True, rotate=True, color=True, zoom=True):
+def augment(dataset, img_size, flip=True, rotate=True, hue=True, saturation=True, 
+    brighness=True, contrast=True, zoom=True):
     augmentations = []
     if flip:
         augmentations.append(apply_flip)
     if rotate:
         augmentations.append(apply_rotate)
-    if color:
-        augmentations.append(apply_color)
+    if hue:
+        augmentations.append(lambda x: tf.image.random_hue(x, 0.1))
+    if saturation:
+        augmentations.append(lambda x: tf.image.random_saturation(x, 0.9, 1.1))
+    if brighness:
+        augmentations.append(lambda x: tf.image.random_brightness(x, 0.1))
+    if contrast:
+        augmentations.append(lambda x: tf.image.random_contrast(x, 0.9, 1.1))
     if zoom:
         augmentations.append(lambda x: apply_zoom(x, img_size))
 
