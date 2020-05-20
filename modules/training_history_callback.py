@@ -27,8 +27,10 @@ class TrainingHistoryCallback(tf.keras.callbacks.Callback):
                 if not key.startswith('val_'):
                     if key == 'f1_score':
                         plot_f1(self.metrics, self.class_names, self.metrics_plot_dir)
+                        plot_f1_html(self.metrics, self.class_names, self.metrics_plot_dir)
                     else:
                         plot_metric(self.metrics, key, self.metrics_plot_dir)
+                        plot_metric_html(self.metrics, key, self.metrics_plot_dir)
 
         if self.save_weights:
             self.weights.append([])

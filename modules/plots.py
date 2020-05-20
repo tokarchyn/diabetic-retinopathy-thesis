@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 import math
 import itertools
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 def plot_metric(metrics, metric_name, save_dest=None):
     fig = plt.figure(figsize=(12, 8))
@@ -54,6 +56,54 @@ def plot_f1(metrics, class_names, save_dest=None):
         'f1_score_average',
         save_dest)
 
+
+def plot_metric_html(metrics, metric_name, save_dest):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=metrics[metric_name], mode='lines+markers', name=metric_name))
+    val_metric_name = 'val_' + metric_name
+    if val_metric_name in metrics:
+        fig.add_trace(go.Scatter(y=metrics[val_metric_name], mode='lines+markers', name=val_metric_name))
+
+    fig.update_layout(
+        title=metric_name,
+        xaxis_title='epoch',
+        yaxis_title=metric_name
+    )
+    fig.write_html(os.path.join(save_dest, metric_name + '.html'))
+
+
+def plot_f1_html(metrics, class_names, save_dest):
+    fig = make_subplots(rows=2, cols=1, subplot_titles=("Training", "Validation"))
+
+    metric_name = 'f1_score'
+    metric_arr = np.array(metrics[metric_name])
+    class_number = metric_arr.shape[1]
+    for i in range(0, class_number):
+        fig.add_trace(
+            go.Scatter(y=metric_arr[:,i], mode='lines+markers', name=class_names[i]),
+            row=1, col=1
+        )
+
+    val_metric_name = 'val_' + metric_name
+    val_metric_arr = np.array(metrics[val_metric_name])
+    for i in range(0, class_number):
+        fig.add_trace(
+            go.Scatter(y=val_metric_arr[:,i], mode='lines+markers', name='val ' + class_names[i]),
+            row=2, col=1
+        )
+
+    fig.update_xaxes(title_text='epoch', row=1, col=1)
+    fig.update_yaxes(title_text='f1_score', row=1, col=1)
+    fig.update_xaxes(title_text='epoch', row=2, col=1)
+    fig.update_yaxes(title_text='val_f1_score', row=2, col=1)
+
+    fig.write_html(os.path.join(save_dest, metric_name + '.html'))
+
+    plot_metric({
+        'f1_score_average': np.array(metrics['f1_score']).mean(axis=1),
+        'val_f1_score_average': np.array(metrics['val_f1_score']).mean(axis=1)},
+        'f1_score_average',
+        save_dest)
 
 def plot_confusion_matrix(true_lables, pred_labels, target_names, save_dest=None):
     cm = confusion_matrix(true_lables, pred_labels)

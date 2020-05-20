@@ -20,6 +20,7 @@ IN_COLAB = 'google.colab' in sys.modules
 
 from modules.cyclic_lr import CyclicLR
 from modules.f_score import F1Score
+from modules.cohen_kappa import CohenKappa
 from modules.plots import plot_confusion_matrix
 from modules.augmenter import augment
 from modules.training_history_callback import TrainingHistoryCallback
@@ -56,7 +57,7 @@ def init_env():
         args['image_dir'] = os.path.join(
             args['project_dir'], 'train_processed')
         args['dataframe_path'] = os.path.join(
-            args['remote_project_dir'], 'trainLabels_full.csv')
+            args['remote_project_dir'], 'trainLabels.csv')
         args['experiments_dir'] = os.path.join(
             args['remote_project_dir'], 'experiments')
         args['quality_dataset_path'] = None
@@ -89,7 +90,11 @@ def init_env():
                             default='inception')
         parser.add_argument('--cyclic_lr', action='store_true')
         parser.add_argument('--augment', action='store_true')
+        parser.add_argument('--bias_reg', action='store_true')
+        parser.add_argument('--kernel_reg', action='store_true')
         parser.add_argument('--balance_mode', type=str,
+                            default=None)
+        parser.add_argument('--checkpoint_path', type=str,
                             default=None)
         parsed_args = parser.parse_args()
         args = vars(parsed_args)
@@ -320,16 +325,17 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         Path(best_models_dir).mkdir(parents=True, exist_ok=True)
         callbacks.append(tf.keras.callbacks.ModelCheckpoint(
             os.path.join(
-                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}-f1_{val_f1_score:.2f}.hdf5'),
-            monitor='val_f1_score',
+                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}-ck_{cohen_kappa:.2f}.hdf5'),
+            monitor='val_cohen_kappa',
             verbose=0,
             save_best_only=True,
             save_weights_only=False,
-            mode='auto'))
+            mode='max'))
     if early_stopping:
         callbacks.append(tf.keras.callbacks.EarlyStopping(
-            monitor='val_f1_score',
-            patience=30,
+            monitor='val_cohen_kappa',
+            patience=40,
+            mode='max',
             restore_best_weights=True))
     if reduce_lr_on_plateau:
         callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(
@@ -344,7 +350,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
     if training_history:
         Path(metrics_plot_dir).mkdir(parents=True, exist_ok=True)
         callbacks.append(TrainingHistoryCallback(
-            ['loss', 'accuracy', 'f1_score', 'lr'],
+            ['loss', 'accuracy', 'f1_score', 'lr', 'cohen_kappa'],
             metrics_plot_dir = metrics_plot_dir,
             save_weights = False,
             class_names = class_names))
@@ -363,23 +369,10 @@ def top_2_accuracy(in_gt, in_pred):
 
 
 def get_metrics():
-    return ['accuracy', F1Score(len(CLASS_INDEXES)), top_2_accuracy]
+    return ['accuracy', F1Score(len(CLASS_INDEXES)), top_2_accuracy, CohenKappa(len(CLASS_INDEXES))]
 
 
 # Train and validation
-
-
-def train(model, train_ds, train_steps, val_ds, val_steps, epochs, callbacks, weights=None):
-    print('Start training.')
-    history = model.fit(train_ds, steps_per_epoch=train_steps,
-                        validation_data=val_ds, validation_steps=val_steps,
-                        class_weight=weights,
-                        epochs=epochs,
-                        callbacks=callbacks
-                        )
-    print('Training finished.')
-    return history
-
 
 def create_confusion_matrix(model, dataset, steps, target_names, save_dest=None):
     print('Creating confusion matrix.')
@@ -416,7 +409,7 @@ train_ds, train_count, val_ds, val_count = create_datasets(
     img_size=args['img_size'],
     batch_size=args['batch_size'],
     augment_lambda = augment_lambda)
-train_steps = 5000 // args['batch_size']  # train_count // args['batch_size']
+train_steps = 1#5000 // args['batch_size']  # train_count // args['batch_size']
 
 # Create model
 params = {
@@ -424,7 +417,9 @@ params = {
     'class_number': len(CLASS_NAMES),
     'metrics': get_metrics(),
     'lr': args['learning_rate'],
-    'activation': tf.keras.layers.LeakyReLU(alpha=0.3)
+    'activation': tf.keras.layers.LeakyReLU(alpha=0.3),
+    'kernel_reg': tf.keras.regularizers.l2(5e-4) if args['kernel_reg'] else None,
+    'bias_reg': tf.keras.regularizers.l2(5e-4) if args['bias_reg'] else None
 }
 try:
     del model
@@ -446,25 +441,33 @@ models_collection = {
 model = models_collection[args['model']](params)
 # model.summary()
 
+# Load weights
+if args['checkpoint_path']:
+    model.load_weights(args['checkpoint_path'])
+
 # Train
 experiment_dir = create_experiment(params, args)
 callbacks = get_callbacks(save_best_models=True,
                           best_models_dir=os.path.join(experiment_dir, 'models'),
-                          early_stopping=False,
+                          early_stopping=True,
                           reduce_lr_on_plateau=False,
                           training_history=True,
                           metrics_plot_dir=experiment_dir,
                           cyclic_lr=args['cyclic_lr'],
                           cyclic_lr_step_size=train_steps,
                           class_names=CLASS_NAMES)
-history = train(model=model,
-                train_ds=train_ds,
-                train_steps=train_steps,
-                val_ds=val_ds,
-                val_steps=val_count // args['batch_size'],
-                epochs=500,
-                weights=weights,
-                callbacks=callbacks)
+
+try:
+    history = model.fit(train_ds, 
+                        steps_per_epoch = train_steps,
+                        validation_data = val_ds, 
+                        validation_steps = val_count // args['batch_size'],
+                        class_weight = weights,
+                        epochs = 500,
+                        callbacks = callbacks
+                        )
+except Exception as e:
+    print('Something happened during train process.', str(e))
 
 # Validate
 create_confusion_matrix(model, val_ds, val_count //

@@ -2,7 +2,7 @@ from tensorflow.keras.optimizers import *
 from tensorflow.keras.layers import *
 from tensorflow.keras.models import Sequential
 
-def get_alex_model(input_shape, class_number, metrics, lr, activation='relu'):
+def get_alex_model(input_shape, class_number, metrics, lr, activation='relu', kernel_reg=None, bias_reg=None):
     model = Sequential()
 
     model.add(Conv2D(96, (11, 11), strides=4, activation=activation,  padding="same",
