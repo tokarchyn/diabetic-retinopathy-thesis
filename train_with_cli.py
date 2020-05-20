@@ -277,9 +277,9 @@ def prepare(ds, shuffle_buffer_size=200):
     # scale pixels between -1 and 1
     # ds = ds.map(lambda img, level: (tf.keras.applications.inception_v3.preprocess_input(img), level),
     #             num_parallel_calls=AUTOTUNE)
-    ds = ds.shuffle(buffer_size=shuffle_buffer_size)
-    ds = ds.repeat()
     ds = ds.prefetch(buffer_size=AUTOTUNE)
+    ds = ds.repeat()
+    ds = ds.shuffle(buffer_size=shuffle_buffer_size)
     return ds
 
 
@@ -325,7 +325,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         Path(best_models_dir).mkdir(parents=True, exist_ok=True)
         callbacks.append(tf.keras.callbacks.ModelCheckpoint(
             os.path.join(
-                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}-ck_{cohen_kappa:.2f}.hdf5'),
+                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}-ck_{val_cohen_kappa:.2f}.hdf5'),
             monitor='val_cohen_kappa',
             verbose=0,
             save_best_only=True,
@@ -409,7 +409,7 @@ train_ds, train_count, val_ds, val_count = create_datasets(
     img_size=args['img_size'],
     batch_size=args['batch_size'],
     augment_lambda = augment_lambda)
-train_steps = 1#5000 // args['batch_size']  # train_count // args['batch_size']
+train_steps = 5000 // args['batch_size']  # train_count // args['batch_size']
 
 # Create model
 params = {
