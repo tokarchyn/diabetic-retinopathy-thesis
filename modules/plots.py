@@ -99,7 +99,7 @@ def plot_f1_html(metrics, class_names, save_dest):
 
     fig.write_html(os.path.join(save_dest, metric_name + '.html'))
 
-    plot_metric({
+    plot_metric_html({
         'f1_score_average': np.array(metrics['f1_score']).mean(axis=1),
         'val_f1_score_average': np.array(metrics['val_f1_score']).mean(axis=1)},
         'f1_score_average',

@@ -27,6 +27,7 @@ from modules.training_history_callback import TrainingHistoryCallback
 from models.alex_model import get_alex_model
 from models.all_cnn_model import get_all_cnn_model
 from models.inception_v3_model import get_inception_v3
+from models.inception_v3_clean_model import get_inception_v3_clean
 from models.vgg_16_model import get_vgg_model
 
 pd.options.mode.chained_assignment = None
@@ -88,6 +89,8 @@ def init_env():
                             default=None)
         parser.add_argument('--model', type=str,
                             default='inception')
+        parser.add_argument('--img_size', type=int,
+                            default=512)
         parser.add_argument('--cyclic_lr', action='store_true')
         parser.add_argument('--augment', action='store_true')
         parser.add_argument('--bias_reg', action='store_true')
@@ -104,7 +107,6 @@ def init_env():
         os.environ["CUDA_VISIBLE_DEVICES"]=args['gpu_id']
         tf_device='/gpu:0'
 
-    args['img_size'] = 512
     args['batch_size'] = 16
     args['learning_rate'] = 0.00005
     print('Arguments:', json.dumps(args))
@@ -274,9 +276,6 @@ def process_path(file_path, level, img_size):
 
 
 def prepare(ds, shuffle_buffer_size=200):
-    # scale pixels between -1 and 1
-    # ds = ds.map(lambda img, level: (tf.keras.applications.inception_v3.preprocess_input(img), level),
-    #             num_parallel_calls=AUTOTUNE)
     ds = ds.prefetch(buffer_size=AUTOTUNE)
     ds = ds.repeat()
     ds = ds.shuffle(buffer_size=shuffle_buffer_size)
@@ -364,12 +363,8 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
     return callbacks
 
 
-def top_2_accuracy(in_gt, in_pred):
-    return tf.keras.metrics.top_k_categorical_accuracy(in_gt, in_pred, k=2)
-
-
 def get_metrics():
-    return ['accuracy', F1Score(len(CLASS_INDEXES)), top_2_accuracy, CohenKappa(len(CLASS_INDEXES))]
+    return ['accuracy', F1Score(len(CLASS_INDEXES)), CohenKappa(len(CLASS_INDEXES))]
 
 
 # Train and validation
@@ -436,7 +431,8 @@ models_collection = {
         ),
     'vgg': lambda p: get_vgg_model(**p),
     'alex': lambda p: get_alex_model(**p),
-    'all_cnn': lambda p: get_all_cnn_model(**p)
+    'all_cnn': lambda p: get_all_cnn_model(**p),
+    'inception_clean': lambda p: get_inception_v3_clean(**p)
 }
 model = models_collection[args['model']](params)
 # model.summary()
