@@ -4,7 +4,7 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.models import Sequential
 from tensorflow.keras import Model
 
-def get_inception_v3_clean(class_number, input_shape, metrics, lr, activation='relu', kernel_reg=None, bias_reg=None):
+def get_inception_v3_clean(class_number, input_shape, metrics, optimizer, activation='relu', kernel_reg=None, bias_reg=None):
     base_model = InceptionV3(weights=None,
                              include_top=False,
                              input_shape=input_shape)
@@ -24,7 +24,7 @@ def get_inception_v3_clean(class_number, input_shape, metrics, lr, activation='r
     predictions = Dense(class_number, activation='softmax')(x)
     model = Model(inputs=base_model.input, outputs=predictions)
     
-    model.compile(optimizer=Adam(learning_rate=lr),
+    model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy',
                   metrics=metrics)
     return model

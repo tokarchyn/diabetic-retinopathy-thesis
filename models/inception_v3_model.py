@@ -4,7 +4,7 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.models import Sequential
 from tensorflow.keras import Model
 
-def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers_number, input_shape, metrics, lr, activation='relu', kernel_reg=None, bias_reg=None):
+def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers_number, input_shape, metrics, optimizer, activation='relu', kernel_reg=None, bias_reg=None):
     # create the base pre-trained model
     base_model = InceptionV3(weights='imagenet',
                              include_top=False,
@@ -32,8 +32,7 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
         layer.trainable = False
 
     # compile the model (should be done *after* setting layers to non-trainable)
-    model.compile(optimizer=Adam(
-        learning_rate=lr), loss='categorical_crossentropy')
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
     # train the model on the new data for a few epochs
     model.fit(train_ds, steps_per_epoch=train_steps,
@@ -46,7 +45,7 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
 
     # we need to recompile the model for these modifications to take effect
     # we use SGD with a low learning rate
-    model.compile(optimizer=Adam(learning_rate=lr),
+    model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy',
                   metrics=metrics)
     return model

@@ -148,3 +148,19 @@ def show_batch(image_batch, label_batch, label_names, number_to_show=4, predicte
         c_ax.set_title(title, color='g' if pred_level ==
                        '' or real_level == pred_level else 'r')
         c_ax.axis('off')
+
+def create_confusion_matrix(model, dataset, steps, target_names, save_dest=None):
+    print('Creating confusion matrix.')
+    it = iter(dataset)
+    true_labels_glob = []
+    pred_labels_glob = []
+
+    for i in range(0, steps):
+        image_batch, true_labels = next(it)
+        true_labels_glob.extend(np.argmax(true_labels, axis=1))
+        pred = model.predict(image_batch)
+        pred_labels_glob.extend(np.argmax(pred, axis=1))
+
+    plot_confusion_matrix(
+        true_labels_glob, pred_labels_glob, target_names, save_dest)
+    print('Confusion matrix was saved to', save_dest)

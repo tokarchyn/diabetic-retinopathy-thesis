@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from keras.utils.np_utils import to_categorical
 from tensorflow.keras import datasets, layers, models
+from tensorflow.keras.optimizers import *
 
 import json
 import argparse
@@ -16,12 +17,11 @@ import numpy as np
 import sys
 from matplotlib import pyplot as plt
 plt.ioff()
-IN_COLAB = 'google.colab' in sys.modules
 
 from modules.cyclic_lr import CyclicLR
 from modules.f_score import F1Score
 from modules.cohen_kappa import CohenKappa
-from modules.plots import plot_confusion_matrix
+from modules.plots import create_confusion_matrix
 from modules.augmenter import augment
 from modules.training_history_callback import TrainingHistoryCallback
 from models.alex_model import get_alex_model
@@ -42,73 +42,48 @@ CLASS_NAMES = np.array(
 CLASS_INDEXES = [0, 1, 2, 3, 4]
 
 
-def fetch_data_from_gdrive(project_dir, remote_project_dir, zip_name):
-    target_zip = os.path.join(project_dir, zip_name)
-    # !mkdir - p "{project_dir}"
-    # !cp "{remote_project_dir}/{zip_name}" "{target_zip}"
-    # !unzip - q "{target_zip}"
-    # !rm "{target_zip}"
-
-
 def init_env():
     args = {}
-    if IN_COLAB:
-        args['remote_project_dir'] = 'drive/My Drive/diabetic-retinopathy-thesis'
-        args['project_dir'] = '/content'
-        args['image_dir'] = os.path.join(
-            args['project_dir'], 'train_processed')
-        args['dataframe_path'] = os.path.join(
-            args['remote_project_dir'], 'trainLabels.csv')
-        args['experiments_dir'] = os.path.join(
-            args['remote_project_dir'], 'experiments')
-        args['quality_dataset_path'] = None
-        args['model'] = 'inception'
-        args['cyclic_lr'] = True
-        args['balance_mode'] = None
-        args['augment'] = True
 
-        from google.colab import drive
-        drive.mount('/content/drive')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--image_dir', type=str, default='train_processed')
+    parser.add_argument('--dataframe_path', type=str,
+                        default='data/train_labels_full.csv')
+    parser.add_argument('--quality_dataset_path',
+                        type=str, default=None)
+    parser.add_argument('--experiments_dir', type=str,
+                        default='experiments')
+    parser.add_argument('--gpu_id', type=str,
+                        default=None)
+    parser.add_argument('--model', type=str,
+                        default='vgg')
+    parser.add_argument('--img_size', type=int,
+                        default=512)
+    parser.add_argument('--batch_size', type=int,
+                        default=16)
 
-        fetch_data_from_gdrive(args['project_dir'],
-                               args['remote_project_dir'],
-                               'train_processed.zip')
-    else:
-        old_argv = sys.argv
-        if sys.argv[-1].endswith('json'):
-            sys.argv = ['']
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--image_dir', type=str, default='train_processed')
-        parser.add_argument('--dataframe_path', type=str,
-                            default='data/train_labels_full.csv')
-        parser.add_argument('--quality_dataset_path',
-                            type=str, default=None)
-        parser.add_argument('--experiments_dir', type=str,
-                            default='experiments')
-        parser.add_argument('--gpu_id', type=str,
-                            default=None)
-        parser.add_argument('--model', type=str,
-                            default='inception')
-        parser.add_argument('--img_size', type=int,
-                            default=512)
-        parser.add_argument('--cyclic_lr', action='store_true')
-        parser.add_argument('--augment', action='store_true')
-        parser.add_argument('--bias_reg', action='store_true')
-        parser.add_argument('--kernel_reg', action='store_true')
-        parser.add_argument('--balance_mode', type=str,
-                            default=None)
-        parser.add_argument('--checkpoint_path', type=str,
-                            default=None)
-        parsed_args = parser.parse_args()
-        args = vars(parsed_args)
-        sys.argv = old_argv
+    parser.add_argument('--cyclic_lr', action='store_true')
+    parser.add_argument('--optimizer', type=str,
+                        default='adam')
+    parser.add_argument('--learning_rate', type=float,
+                        default=0.0000001)
+    parser.add_argument('--momentum', type=float,
+                        default=0.9)
+
+    parser.add_argument('--augment', action='store_true')
+    parser.add_argument('--bias_reg', action='store_true')
+    parser.add_argument('--kernel_reg', action='store_true')
+    parser.add_argument('--balance_mode', type=str,
+                        default=None)
+    parser.add_argument('--checkpoint_path', type=str,
+                        default=None)
+    parsed_args = parser.parse_args()
+    args = vars(parsed_args)
 
     if args['gpu_id'] is not None:
         os.environ["CUDA_VISIBLE_DEVICES"]=args['gpu_id']
         tf_device='/gpu:0'
 
-    args['batch_size'] = 16
-    args['learning_rate'] = 0.00005
     print('Arguments:', json.dumps(args))
     return args
 
@@ -275,20 +250,13 @@ def process_path(file_path, level, img_size):
     return img, label
 
 
-def prepare(ds, shuffle_buffer_size=200):
-    ds = ds.prefetch(buffer_size=AUTOTUNE)
-    ds = ds.repeat()
-    ds = ds.shuffle(buffer_size=shuffle_buffer_size)
-    return ds
-
-
 def dataset_from_tensor_slices(df):
     return tf.data.Dataset.from_tensor_slices((
         df['image_path'].to_numpy(copy=True),
         df['level'].to_numpy(copy=True)))
 
 
-def create_datasets(train_df, val_df, img_size, batch_size, augment_lambda=None):
+def create_datasets(train_df, val_df, img_size, batch_size, augment_lambda=None, shuffle_buffer_size=1000):
     train_ds = dataset_from_tensor_slices(train_df)
     val_ds = dataset_from_tensor_slices(val_df)
 
@@ -299,11 +267,14 @@ def create_datasets(train_df, val_df, img_size, batch_size, augment_lambda=None)
     if augment_lambda is not None:
         print('Add data augmentation')
         train_ds = augment_lambda(train_ds)
-    train_ds = prepare(train_ds)
+    train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
+    train_ds = train_ds.repeat()
+    train_ds = train_ds.shuffle(buffer_size=shuffle_buffer_size, reshuffle_each_iteration=False)
     train_ds = train_ds.batch(batch_size)
 
     val_ds = val_ds.map(process_path_local, num_parallel_calls=AUTOTUNE)
-    val_ds = prepare(val_ds)
+    val_ds = val_ds.prefetch(buffer_size=AUTOTUNE)
+    val_ds = val_ds.repeat()
     val_ds = val_ds.batch(batch_size)
 
     return train_ds, len(train_df), val_ds, len(val_df)
@@ -318,7 +289,8 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
                   reduce_lr_on_plateau=False,
                   training_history=True, metrics_plot_dir=None,
                   cyclic_lr=True, cyclic_lr_step_size=-1,
-                  class_names=[]):
+                  class_names=[],
+                  learning_rate=0.001):
     callbacks = []
     if save_best_models:
         Path(best_models_dir).mkdir(parents=True, exist_ok=True)
@@ -333,7 +305,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
     if early_stopping:
         callbacks.append(tf.keras.callbacks.EarlyStopping(
             monitor='val_cohen_kappa',
-            patience=40,
+            patience=50,
             mode='max',
             restore_best_weights=True))
     if reduce_lr_on_plateau:
@@ -355,36 +327,12 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
             class_names = class_names))
     if cyclic_lr:
         callbacks.append(CyclicLR(
-            mode='triangular',
-            base_lr=1e-3,
-            max_lr=1e-6,
-            step_size= 4 * cyclic_lr_step_size)) # recommended coeficient is from 2 to 8
+            mode='triangular2',
+            base_lr=learning_rate,
+            max_lr=1e-3,
+            step_size= 8 * cyclic_lr_step_size)) # recommended coeficient is from 2 to 8
 
     return callbacks
-
-
-def get_metrics():
-    return ['accuracy', F1Score(len(CLASS_INDEXES)), CohenKappa(len(CLASS_INDEXES))]
-
-
-# Train and validation
-
-def create_confusion_matrix(model, dataset, steps, target_names, save_dest=None):
-    print('Creating confusion matrix.')
-    it = iter(dataset)
-    true_labels_glob = []
-    pred_labels_glob = []
-
-    for i in range(0, steps):
-        image_batch, true_labels = next(it)
-        true_labels_glob.extend(np.argmax(true_labels, axis=1))
-        pred = model.predict(image_batch)
-        pred_labels_glob.extend(np.argmax(pred, axis=1))
-
-    plot_confusion_matrix(
-        true_labels_glob, pred_labels_glob, target_names, save_dest)
-    print('Confusion matrix was saved to', save_dest)
-
 
 # Get args
 args = init_env()
@@ -410,12 +358,16 @@ train_steps = 5000 // args['batch_size']  # train_count // args['batch_size']
 params = {
     'input_shape': get_input_shape(args['img_size']),
     'class_number': len(CLASS_NAMES),
-    'metrics': get_metrics(),
-    'lr': args['learning_rate'],
+    'metrics': ['accuracy', F1Score(len(CLASS_INDEXES)), CohenKappa(len(CLASS_INDEXES))],
     'activation': tf.keras.layers.LeakyReLU(alpha=0.3),
     'kernel_reg': tf.keras.regularizers.l2(5e-4) if args['kernel_reg'] else None,
     'bias_reg': tf.keras.regularizers.l2(5e-4) if args['bias_reg'] else None
 }
+if args['optimizer'] == 'adam':
+    params['optimizer'] = Adam(lr=args['learning_rate'])
+elif args['optimizer'] == 'sgd':
+    params['optimizer'] = SGD(lr=args['learning_rate'], momentum=args['momentum'])
+
 try:
     del model
 except:
@@ -451,6 +403,7 @@ callbacks = get_callbacks(save_best_models=True,
                           metrics_plot_dir=experiment_dir,
                           cyclic_lr=args['cyclic_lr'],
                           cyclic_lr_step_size=train_steps,
+                          learning_rate=args['learning_rate'],
                           class_names=CLASS_NAMES)
 
 try:

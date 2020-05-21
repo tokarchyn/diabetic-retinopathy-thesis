@@ -2,7 +2,10 @@ from tensorflow.keras.optimizers import *
 from tensorflow.keras.layers import *
 from tensorflow.keras.models import Sequential
 
-def get_all_cnn_model(input_shape, class_number, metrics, lr, activation='relu'):
+def get_all_cnn_model(input_shape, class_number, metrics, optimizer, activation='relu', kernel_reg=None, bias_reg=None):
+    if kernel_reg is not None or bias_reg is not None:
+        raise AttributeError('Not supported yet')
+
     model = Sequential()
 
     model.add(Conv2D(32, (7, 7), strides=1, activation=activation,  padding="valid",
@@ -38,7 +41,6 @@ def get_all_cnn_model(input_shape, class_number, metrics, lr, activation='relu')
     model.add(Flatten())
     model.add(Dense(class_number, activation="softmax"))
 
-    optimizer = SGD(learning_rate=lr)
     model.compile(optimizer=optimizer,
                   loss="categorical_crossentropy", metrics=metrics)
     return model

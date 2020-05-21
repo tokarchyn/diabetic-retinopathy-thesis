@@ -2,7 +2,7 @@ from tensorflow.keras.optimizers import *
 from tensorflow.keras.layers import *
 from tensorflow.keras.models import Sequential
 
-def get_vgg_model(input_shape, class_number, metrics, lr, activation='relu', kernel_reg=None, bias_reg=None):
+def get_vgg_model(input_shape, class_number, metrics, optimizer, activation='relu', kernel_reg=None, bias_reg=None):
     model = Sequential()
     model.add(Conv2D(32, (3, 3), padding="same", activation=activation,
                      kernel_regularizer=kernel_reg,
@@ -58,7 +58,6 @@ def get_vgg_model(input_shape, class_number, metrics, lr, activation='relu', ker
     model.add(Dropout(0.5))
     model.add(Dense(class_number, activation="softmax"))
 
-    optimizer = Adam(learning_rate=lr)
     model.compile(optimizer=optimizer, loss='categorical_crossentropy',
                   metrics=metrics)
     return model
