@@ -66,7 +66,7 @@ def init_env():
     parser.add_argument('--optimizer', type=str,
                         default='adam')
     parser.add_argument('--learning_rate', type=float,
-                        default=0.0000001)
+                        default=0.000005)
     parser.add_argument('--momentum', type=float,
                         default=0.9)
 
@@ -305,7 +305,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
     if early_stopping:
         callbacks.append(tf.keras.callbacks.EarlyStopping(
             monitor='val_cohen_kappa',
-            patience=50,
+            patience=80,
             mode='max',
             restore_best_weights=True))
     if reduce_lr_on_plateau:
@@ -387,7 +387,7 @@ models_collection = {
     'inception_clean': lambda p: get_inception_v3_clean(**p)
 }
 model = models_collection[args['model']](params)
-# model.summary()
+model.summary()
 
 # Load weights
 if args['checkpoint_path']:
@@ -395,7 +395,7 @@ if args['checkpoint_path']:
 
 # Train
 experiment_dir = create_experiment(params, args)
-callbacks = get_callbacks(save_best_models=True,
+callbacks = get_callbacks(save_best_models=False,
                           best_models_dir=os.path.join(experiment_dir, 'models'),
                           early_stopping=True,
                           reduce_lr_on_plateau=False,

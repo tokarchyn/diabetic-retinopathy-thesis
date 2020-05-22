@@ -1,0 +1,28 @@
+{
+    "input_shape": [
+        512,
+        512,
+        3
+    ],
+    "model": "vgg",
+    "bias_reg": false,
+    "optimizer": "adam",
+    "class_number": 5,
+    "img_size": 512,
+    "batch_size": 16,
+    "momentum": 0.9,
+    "metrics": "['accuracy', <modules.f_score.F1Score object at 0x7f6a45bcefd0>, <modules.cohen_kappa.CohenKappa object at 0x7f6a45c1a550>]",
+    "experiments_dir": "experiments",
+    "checkpoint_path": null,
+    "activation": "<tensorflow.python.keras.layers.advanced_activations.LeakyReLU object at 0x7f6a45c1a1d0>",
+    "quality_dataset_path": "/mnt/EYEQ/MCF_Net/result/image_quality.csv",
+    "augment": true,
+    "kernel_reg": true,
+    "cyclic_lr": true,
+    "learning_rate": 5e-06,
+    "dataframe_path": "data/train_labels.csv",
+    "balance_mode": "max",
+    "gpu_id": "1",
+    "image_dir": "/mnt/dr_data/train_processed/",
+    "description": ""
+}

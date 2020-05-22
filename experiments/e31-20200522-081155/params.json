@@ -1,0 +1,28 @@
+{
+    "checkpoint_path": null,
+    "bias_reg": false,
+    "dataframe_path": "data/train_labels.csv",
+    "quality_dataset_path": null,
+    "momentum": 0.9,
+    "kernel_reg": true,
+    "augment": true,
+    "model": "vgg",
+    "metrics": "['accuracy', <modules.f_score.F1Score object at 0x7f86e9db0d30>, <modules.cohen_kappa.CohenKappa object at 0x7f86e9daa588>]",
+    "class_number": 5,
+    "input_shape": [
+        512,
+        512,
+        3
+    ],
+    "batch_size": 16,
+    "gpu_id": "0",
+    "balance_mode": "max",
+    "activation": "<tensorflow.python.keras.layers.advanced_activations.LeakyReLU object at 0x7f86e9daa550>",
+    "cyclic_lr": true,
+    "img_size": 512,
+    "experiments_dir": "experiments",
+    "image_dir": "/mnt/dr_data/train_processed/",
+    "optimizer": "adam",
+    "learning_rate": 1e-07,
+    "description": "Add Conv 7*7"
+}
