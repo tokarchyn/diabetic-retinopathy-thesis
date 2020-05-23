@@ -10,7 +10,7 @@ def get_inception_v3_clean(class_number, input_shape, metrics, optimizer, activa
                              input_shape=input_shape)
     x = base_model.output
     # x = Dropout(0.5)(x)
-    # x = BatchNormalization()(x)
+    x = BatchNormalization()(x)
 
     x = GlobalAveragePooling2D()(x)
     # x = Dense(1024, activation=activation,

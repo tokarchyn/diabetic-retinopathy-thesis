@@ -305,7 +305,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
     if early_stopping:
         callbacks.append(tf.keras.callbacks.EarlyStopping(
             monitor='val_cohen_kappa',
-            patience=80,
+            patience=100,
             mode='max',
             restore_best_weights=True))
     if reduce_lr_on_plateau:
