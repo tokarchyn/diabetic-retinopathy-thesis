@@ -28,6 +28,7 @@ from models.alex_model import get_alex_model
 from models.all_cnn_model import get_all_cnn_model
 from models.inception_v3_model import get_inception_v3
 from models.inception_v3_clean_model import get_inception_v3_clean
+from models.efficient_model import get_efficient
 from models.vgg_16_model import get_vgg_model
 
 pd.options.mode.chained_assignment = None
@@ -305,7 +306,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
     if early_stopping:
         callbacks.append(tf.keras.callbacks.EarlyStopping(
             monitor='val_cohen_kappa',
-            patience=100,
+            patience=200,
             mode='max',
             restore_best_weights=True))
     if reduce_lr_on_plateau:
@@ -329,7 +330,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         callbacks.append(CyclicLR(
             mode='triangular2',
             base_lr=learning_rate,
-            max_lr=1e-3,
+            max_lr=1e-2,
             step_size= 8 * cyclic_lr_step_size)) # recommended coeficient is from 2 to 8
 
     return callbacks
@@ -384,7 +385,13 @@ models_collection = {
     'vgg': lambda p: get_vgg_model(**p),
     'alex': lambda p: get_alex_model(**p),
     'all_cnn': lambda p: get_all_cnn_model(**p),
-    'inception_clean': lambda p: get_inception_v3_clean(**p)
+    'inception_clean': lambda p: get_inception_v3_clean(**p),
+    'efficient': lambda p: get_efficient(**p,
+        train_ds = train_ds,
+        train_steps = train_steps,
+        weights = weights,
+        freeze_layers_number = 620
+        )
 }
 model = models_collection[args['model']](params)
 model.summary()
