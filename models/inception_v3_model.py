@@ -10,15 +10,16 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
                              include_top=False,
                              input_shape=input_shape)
     x = base_model.output
-    x = Dropout(0.5)(x)
+    # x = Dropout(0.5)(x)
     x = BatchNormalization()(x)
 
-    x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation=activation,
+    # x = GlobalAveragePooling2D()(x)
+    x = Flatten()(x)
+    x = Dense(256, activation=activation,
                     kernel_regularizer=kernel_reg,
                     bias_regularizer=bias_reg)(x)
     x = Dropout(0.5)(x)
-    x = Dense(1024, activation=activation,
+    x = Dense(256, activation=activation,
                     kernel_regularizer=kernel_reg,
                     bias_regularizer=bias_reg)(x)
     x = Dropout(0.5)(x)

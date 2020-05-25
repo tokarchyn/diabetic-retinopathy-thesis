@@ -330,7 +330,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         callbacks.append(CyclicLR(
             mode='triangular2',
             base_lr=learning_rate,
-            max_lr=1e-2,
+            max_lr=1e-3,
             step_size= 8 * cyclic_lr_step_size)) # recommended coeficient is from 2 to 8
 
     return callbacks
