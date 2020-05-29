@@ -1,0 +1,27 @@
+{
+    "kernel_reg": true,
+    "experiments_dir": "experiments",
+    "checkpoint_path": null,
+    "cyclic_lr": true,
+    "augment": true,
+    "input_shape": [
+        512,
+        512,
+        3
+    ],
+    "optimizer": "adam",
+    "bias_reg": true,
+    "quality_dataset_path": null,
+    "activation": "leaky_relu",
+    "momentum": 0.9,
+    "model": "vgg",
+    "img_size": 512,
+    "learning_rate": 5e-06,
+    "metrics": "['accuracy', <modules.f_score.F1Score object at 0x7f1b523cc9b0>, <modules.cohen_kappa.CohenKappa object at 0x7f1b524085c0>]",
+    "dataframe_path": "data/train_labels.csv",
+    "batch_size": 16,
+    "image_dir": "/mnt/dr_data/clahe_v2/",
+    "gpu_id": "1",
+    "class_number": 5,
+    "balance_mode": "max"
+}

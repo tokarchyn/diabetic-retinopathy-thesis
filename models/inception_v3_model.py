@@ -13,15 +13,15 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
     # x = Dropout(0.5)(x)
     x = BatchNormalization()(x)
 
-    # x = GlobalAveragePooling2D()(x)
-    x = Flatten()(x)
-    x = Dense(256, activation=activation,
-                    kernel_regularizer=kernel_reg,
-                    bias_regularizer=bias_reg)(x)
-    x = Dropout(0.5)(x)
-    x = Dense(256, activation=activation,
-                    kernel_regularizer=kernel_reg,
-                    bias_regularizer=bias_reg)(x)
+    x = GlobalAveragePooling2D()(x)
+    # x = Flatten()(x)
+    # x = Dense(256, activation=activation,
+    #                 kernel_regularizer=kernel_reg,
+    #                 bias_regularizer=bias_reg)(x)
+    # x = Dropout(0.5)(x)
+    # x = Dense(256, activation=activation,
+    #                 kernel_regularizer=kernel_reg,
+    #                 bias_regularizer=bias_reg)(x)
     x = Dropout(0.5)(x)
     predictions = Dense(class_number, activation='softmax')(x)
 
@@ -33,14 +33,14 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
         layer.trainable = False
 
     # compile the model (should be done *after* setting layers to non-trainable)
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy')
+    # model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
     # train the model on the new data for a few epochs
-    model.fit(train_ds, steps_per_epoch=train_steps,
-              epochs=3, class_weight=weights)
+    # model.fit(train_ds, steps_per_epoch=train_steps,
+    #           epochs=3, class_weight=weights)
 
     for layer in model.layers[:freeze_layers_number]:
-        layer.trainable = False
+        layer.trainable = True
     for layer in model.layers[freeze_layers_number:]:
         layer.trainable = True
 

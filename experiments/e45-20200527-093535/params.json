@@ -1,0 +1,27 @@
+{
+    "experiments_dir": "experiments",
+    "checkpoint_path": null,
+    "metrics": "['accuracy', <modules.f_score.F1Score object at 0x7f85972ca0f0>, <modules.cohen_kappa.CohenKappa object at 0x7f85972be6a0>]",
+    "momentum": 0.9,
+    "dataframe_path": "data/train_labels.csv",
+    "augment": true,
+    "learning_rate": 5e-06,
+    "batch_size": 16,
+    "kernel_reg": true,
+    "bias_reg": true,
+    "optimizer": "adam",
+    "cyclic_lr": true,
+    "gpu_id": "1",
+    "input_shape": [
+        512,
+        512,
+        3
+    ],
+    "class_number": 5,
+    "image_dir": "/mnt/dr_data/processed_v2/",
+    "balance_mode": "max",
+    "img_size": 512,
+    "activation": "relu",
+    "model": "vgg",
+    "quality_dataset_path": null
+}

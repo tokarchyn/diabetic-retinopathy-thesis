@@ -66,6 +66,8 @@ def init_env():
     parser.add_argument('--cyclic_lr', action='store_true')
     parser.add_argument('--optimizer', type=str,
                         default='adam')
+    parser.add_argument('--activation', type=str,
+                        default='leaky_relu')
     parser.add_argument('--learning_rate', type=float,
                         default=0.000005)
     parser.add_argument('--momentum', type=float,
@@ -190,7 +192,7 @@ def shuffle(df):
 def exclude_by_quality(df, quality_dataset_path):
     quality_dict = pd.read_csv(quality_dataset_path, index_col='image_name')[
         'quality'].to_dict()
-    select = df['image_path'].apply(lambda p: Path(p).stem not in quality_dict or quality_dict[Path(p).stem] == 0)
+    select = df['image_path'].apply(lambda p: Path(p).stem not in quality_dict or quality_dict[Path(p).stem] != 2)
     print('Images to exclude:', len(select[select == False]))
     df = df.loc[select]
     return df
@@ -237,6 +239,7 @@ def decode_img(img, img_size):
     img = tf.image.convert_image_dtype(img, tf.float32)
     # resize the image to the desired size.
     img = tf.image.resize(img, [img_size, img_size])
+    # img = tf.keras.applications.inception_v3.preprocess_input(img)
     return img
 
 
@@ -297,7 +300,7 @@ def get_callbacks(save_best_models=True, best_models_dir=None,
         Path(best_models_dir).mkdir(parents=True, exist_ok=True)
         callbacks.append(tf.keras.callbacks.ModelCheckpoint(
             os.path.join(
-                best_models_dir, 'e_{epoch:02d}-acc_{val_accuracy:.2f}-ck_{val_cohen_kappa:.2f}.hdf5'),
+                best_models_dir, 'model.hdf5'),
             monitor='val_cohen_kappa',
             verbose=0,
             save_best_only=True,
@@ -360,15 +363,20 @@ params = {
     'input_shape': get_input_shape(args['img_size']),
     'class_number': len(CLASS_NAMES),
     'metrics': ['accuracy', F1Score(len(CLASS_INDEXES)), CohenKappa(len(CLASS_INDEXES))],
-    'activation': tf.keras.layers.LeakyReLU(alpha=0.3),
     'kernel_reg': tf.keras.regularizers.l2(5e-4) if args['kernel_reg'] else None,
     'bias_reg': tf.keras.regularizers.l2(5e-4) if args['bias_reg'] else None
 }
+
 if args['optimizer'] == 'adam':
     params['optimizer'] = Adam(lr=args['learning_rate'])
 elif args['optimizer'] == 'sgd':
     params['optimizer'] = SGD(lr=args['learning_rate'], momentum=args['momentum'])
 
+if args['activation'] == 'leaky_relu':
+    params['activation'] = tf.keras.layers.LeakyReLU(alpha=0.3)
+elif args['activation'] == 'relu':
+    params['activation'] = tf.keras.layers.ReLU()
+ 
 try:
     del model
 except:
@@ -402,7 +410,7 @@ if args['checkpoint_path']:
 
 # Train
 experiment_dir = create_experiment(params, args)
-callbacks = get_callbacks(save_best_models=False,
+callbacks = get_callbacks(save_best_models=True,
                           best_models_dir=os.path.join(experiment_dir, 'models'),
                           early_stopping=True,
                           reduce_lr_on_plateau=False,

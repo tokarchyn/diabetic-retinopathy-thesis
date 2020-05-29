@@ -10,16 +10,14 @@ def get_inception_v3_clean(class_number, input_shape, metrics, optimizer, activa
                              input_shape=input_shape)
     x = base_model.output
     # x = Dropout(0.5)(x)
-    x = BatchNormalization()(x)
-
-    x = GlobalAveragePooling2D()(x)
-    # x = Dense(1024, activation=activation,
-    #                 kernel_regularizer=kernel_reg,
-    #                 bias_regularizer=bias_reg)(x)
-    # x = Dropout(0.5)(x)
-    # x = Dense(1024, activation=activation,
-    #                 kernel_regularizer=kernel_reg,
-    #                 bias_regularizer=bias_reg)(x)
+    x = Flatten()(x)
+    x = Dense(256, activation=activation,
+                    kernel_regularizer=kernel_reg,
+                    bias_regularizer=bias_reg)(x)
+    x = Dropout(0.5)(x)
+    x = Dense(256, activation=activation,
+                    kernel_regularizer=kernel_reg,
+                    bias_regularizer=bias_reg)(x)
     x = Dropout(0.5)(x)
     predictions = Dense(class_number, activation='softmax')(x)
     model = Model(inputs=base_model.input, outputs=predictions)

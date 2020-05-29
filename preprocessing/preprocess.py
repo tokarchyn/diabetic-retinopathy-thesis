@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import sys
 
-BASE_DIR = os.path.abspath('/mnt/dr_data/train')
+BASE_DIR = os.path.abspath('/mnt/dr_data/test')
 OUT_DIR = os.path.abspath('/mnt/dr_data/processed_v2')
 images_paths = [os.path.basename(path) for path in glob.glob(BASE_DIR + '/*')]
 
