@@ -8,6 +8,8 @@ import sys
 
 BASE_DIR = os.path.abspath('/mnt/dr_data/test')
 OUT_DIR = os.path.abspath('/mnt/dr_data/processed_v2')
+BASE_DIR = os.path.abspath('dataset/train')
+OUT_DIR = os.path.abspath('dataset/processed_v2')
 images_paths = [os.path.basename(path) for path in glob.glob(BASE_DIR + '/*')]
 
 def load_img(filename):
@@ -64,7 +66,7 @@ def calc_radius_and_center(img):
 def fill_everything_out_of_radius(img, r, center):
     mask = np.full((img.shape[0], img.shape[1], 3), 0, dtype=np.uint8)
     cv2.circle(mask, (center[1], center[0]), r, (1,1,1), -1, 8, 0)
-    img = img*mask + 128*(1-mask)
+    img = img * mask
     return img.astype(np.uint8)
 
 def gaussian_filter(img):
@@ -74,6 +76,7 @@ def gaussian_filter(img):
 def process_img(img_name):
     img = load_img(img_name)
     img = resize_image_aspect_ratio(img, new_height=900)
+    img = img[:, 5:-5, :]
     r, center = calc_radius_and_center(img)
     img = gaussian_filter(img)
     r = int(r * 0.95)
