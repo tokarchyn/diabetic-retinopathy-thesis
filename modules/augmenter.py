@@ -1,10 +1,16 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
+import math
 import numpy as np
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
-def apply_rotate(x):
+def apply_rotate_90(x):
     # Rotate 0, 90, 180, 270 degrees
     return tf.image.rot90(x, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+
+
+def apply_rotate(x):
+    return tfa.image.rotate(x, tf.random.uniform(shape=[], minval=0, maxval=6, dtype=tf.float32))
 
 
 def apply_flip(x):
