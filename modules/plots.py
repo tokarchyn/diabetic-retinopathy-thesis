@@ -109,24 +109,27 @@ def plot_confusion_matrix(true_lables, pred_labels, target_names, save_dest=None
     cm = confusion_matrix(true_lables, pred_labels)
     cmap = plt.get_cmap('Blues')
     fig = plt.figure(figsize=(10, 10))
+    fontsize = 15
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title('Confusion matrix')
-    plt.colorbar()
+    plt.title('Confusion matrix', fontsize=fontsize)
+    cbar = plt.colorbar()
+    cbar.ax.tick_params(labelsize=fontsize)
 
     if target_names is not None:
         tick_marks = np.arange(len(target_names))
-        plt.xticks(tick_marks, target_names, rotation=45)
-        plt.yticks(tick_marks, target_names)
+        plt.xticks(tick_marks, target_names, rotation=45, fontsize=fontsize)
+        plt.yticks(tick_marks, target_names, fontsize=fontsize)
 
     thresh = cm.max() / 2
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, "{:,}".format(cm[i, j]),
                  horizontalalignment="center",
-                 color="white" if cm[i, j] > thresh else "black")
+                 color="white" if cm[i, j] > thresh else "black",
+                 fontsize=fontsize)
 
     plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+    plt.ylabel('True label', fontsize=fontsize)
+    plt.xlabel('Predicted label', fontsize=fontsize)
     if save_dest:
         fig.savefig(os.path.join(save_dest, 'confusion_matrix.png'))
     else:
