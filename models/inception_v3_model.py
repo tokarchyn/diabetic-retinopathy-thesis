@@ -11,17 +11,17 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
                              input_shape=input_shape)
     x = base_model.output
     # x = Dropout(0.5)(x)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization()(x)
 
     x = GlobalAveragePooling2D()(x)
     # x = Flatten()(x)
-    # x = Dense(256, activation=activation,
-    #                 kernel_regularizer=kernel_reg,
-    #                 bias_regularizer=bias_reg)(x)
-    # x = Dropout(0.5)(x)
-    # x = Dense(256, activation=activation,
-    #                 kernel_regularizer=kernel_reg,
-    #                 bias_regularizer=bias_reg)(x)
+    x = Dense(256, activation=activation,
+                    kernel_regularizer=kernel_reg,
+                    bias_regularizer=bias_reg)(x)
+    x = Dropout(0.5)(x)
+    x = Dense(256, activation=activation,
+                    kernel_regularizer=kernel_reg,
+                    bias_regularizer=bias_reg)(x)
     x = Dropout(0.5)(x)
     predictions = Dense(class_number, activation='softmax')(x)
 
@@ -40,7 +40,7 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
     #           epochs=3, class_weight=weights)
 
     for layer in model.layers[:freeze_layers_number]:
-        layer.trainable = True
+        layer.trainable = False
     for layer in model.layers[freeze_layers_number:]:
         layer.trainable = True
 
