@@ -10,7 +10,7 @@ def apply_rotate_90(x):
 
 
 def apply_rotate(x):
-    return tfa.image.rotate(x, tf.random.uniform(shape=[], minval=0, maxval=6, dtype=tf.float32))
+    return tfa.image.rotate(x, tf.random.uniform(shape=[], minval=0, maxval=360, dtype=tf.float32) * math.pi / 180)
 
 
 def apply_flip(x):
@@ -50,7 +50,7 @@ def augment(dataset, img_size, flip=True, rotate=True, hue=True, saturation=True
     if flip:
         augmentations.append(apply_flip)
     if rotate:
-        augmentations.append(apply_rotate)
+        augmentations.append(apply_rotate_90)
     if hue:
         augmentations.append(lambda x: tf.image.random_hue(x, 0.1))
     if saturation:

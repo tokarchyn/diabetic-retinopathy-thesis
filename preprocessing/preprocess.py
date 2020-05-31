@@ -7,7 +7,7 @@ import numpy as np
 import sys
 
 BASE_DIR = os.path.abspath('/mnt/dr_data/train')
-OUT_DIR = os.path.abspath('/mnt/dr_data/processed_v2')
+OUT_DIR = os.path.abspath('/mnt/dr_data/processed_v2_gray')
 images_paths = [os.path.basename(path) for path in glob.glob(BASE_DIR + '/*')]
 
 def load_img(filename):
@@ -30,7 +30,7 @@ def resize_image_aspect_ratio(img, new_width=None, new_height=None):
     return new_image
 
 def resize(img):
-    return cv2.resize(img, (800, 800), interpolation = cv2.INTER_AREA)
+    return cv2.resize(img, (600, 600), interpolation = cv2.INTER_AREA)
 
 def crop(img, r, c):
     y_min = max(c[0] - r, 0)
@@ -64,7 +64,7 @@ def calc_radius_and_center(img):
 def fill_everything_out_of_radius(img, r, center):
     mask = np.full((img.shape[0], img.shape[1], 3), 0, dtype=np.uint8)
     cv2.circle(mask, (center[1], center[0]), r, (1,1,1), -1, 8, 0)
-    img = img * mask
+    img = img * mask + 128 * (1 - mask)
     return img.astype(np.uint8)
 
 def gaussian_filter(img):
@@ -73,7 +73,7 @@ def gaussian_filter(img):
 
 def process_img(img_name):
     img = load_img(img_name)
-    img = resize_image_aspect_ratio(img, new_height=1000)
+    img = resize_image_aspect_ratio(img, new_height=900)
     img = img[:, 5:-5, :]
     r, center = calc_radius_and_center(img)
     img = gaussian_filter(img)

@@ -116,6 +116,8 @@ def get_training_params(args):
         params['optimizer'] = Adam(lr=args['learning_rate'])
     elif args['optimizer'] == 'sgd':
         params['optimizer'] = SGD(lr=args['learning_rate'], momentum=args['momentum'])
+    elif args['optimizer'] == 'rmsprop':
+        params['optimizer'] = RMSprop(lr=args['learning_rate'])
 
     if args['activation'] == 'leaky_relu':
         params['activation'] = tf.keras.layers.LeakyReLU(alpha=0.3)
