@@ -1,0 +1,28 @@
+{
+    "input_shape": [
+        299,
+        299,
+        3
+    ],
+    "momentum": 0.9,
+    "gpu_id": "0",
+    "cyclic_lr": true,
+    "balance_mode": "max",
+    "batch_size": 16,
+    "class_number": 5,
+    "img_size": 299,
+    "dataframe_path": "data/train_labels.csv",
+    "bias_reg": true,
+    "checkpoint_path": null,
+    "learning_rate": 0.0001,
+    "image_dir": "/mnt/dr_data/train_processed/",
+    "activation": "leaky_relu",
+    "optimizer": "rmsprop",
+    "experiments_dir": "experiments",
+    "quality_dataset_path": null,
+    "kernel_reg": true,
+    "metrics": "['accuracy', <modules.f_score.F1Score object at 0x7ff4535f2fd0>, <modules.cohen_kappa.CohenKappa object at 0x7ff45359edd8>]",
+    "augment": true,
+    "model": "inception",
+    "description": "Augmentation was disabled"
+}

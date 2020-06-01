@@ -129,10 +129,10 @@ def decode_img(img, img_size):
     # convert the compressed string to a 3D uint8 tensor
     img = tf.image.decode_jpeg(img, channels=3)
     # Use `convert_image_dtype` to convert to floats in the [0,1] range.
-    img = tf.image.convert_image_dtype(img, tf.float32)
+    # img = tf.image.convert_image_dtype(img, tf.float32)
     # resize the image to the desired size.
     img = tf.image.resize(img, [img_size, img_size])
-    # img = tf.keras.applications.inception_v3.preprocess_input(img)
+    img = tf.keras.applications.inception_v3.preprocess_input(img)
     return img
 
 CLASS_INDEXES = [0, 1, 2, 3, 4]
@@ -160,9 +160,9 @@ def create_datasets_from_dataframes(train_df, val_df, img_size, batch_size, augm
     process_path_local = lambda file_path, level: process_path(file_path, level, img_size)
 
     train_ds = train_ds.map(process_path_local, num_parallel_calls=AUTOTUNE)
-    # if augment_lambda is not None:
-    #     print('Add data augmentation')
-    #     train_ds = augment_lambda(train_ds)
+    if augment_lambda is not None:
+        print('Add data augmentation')
+        train_ds = augment_lambda(train_ds)
     train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
     train_ds = train_ds.repeat()
     train_ds = train_ds.shuffle(buffer_size=shuffle_buffer_size, reshuffle_each_iteration=False)
