@@ -13,7 +13,7 @@ In this project we apply convolutional neural network to classify diabetic retin
 ##### Usage: preprocess.py
 Methods to preprocess:
 - winner - the method used by winner in competition on [Kaggle](https://www.kaggle.com/c/diabetic-retinopathy-detection/discussion/15801)
-- my_gauss - extension of winner
+- my_gauss - extension of winner, and the one we used in our thesis "Detecting Diabetic Retinopathy and Related Diagnoses Using Neural Networks"
 - clahe - the same as my_gauss but instead of substraction Gaussian filtered image, CLAHE is used  
 ```
   -h, --help            show this help message and exit
