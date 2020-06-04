@@ -10,8 +10,6 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
                              include_top=False,
                              input_shape=input_shape)
     x = base_model.output
-    # x = Dropout(0.5)(x)
-    # x = BatchNormalization()(x)
 
     x = GlobalAveragePooling2D()(x)
     x = Dense(256, activation=activation,
@@ -31,23 +29,18 @@ def get_inception_v3(train_ds, train_steps, class_number, weights, freeze_layers
     for layer in base_model.layers:
         layer.trainable = False
 
-    # compile the model (should be done *after* setting layers to non-trainable)
     model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
-    # train the model on the new data for a few epochs
+    # train the model on the new data for a few epoch
     model.fit(train_ds, steps_per_epoch=train_steps,
               epochs=3, class_weight=weights)
 
-    # for layer in model.layers[:freeze_layers_number]:
-    #     layer.trainable = False
-    # for layer in model.layers[freeze_layers_number:]:
-    #     layer.trainable = True
-
-    for layer in model.layers:
+    for layer in model.layers[:freeze_layers_number]:
+        layer.trainable = False
+    for layer in model.layers[freeze_layers_number:]:
         layer.trainable = True
 
-    # we need to recompile the model for these modifications to take effect
-    # we use SGD with a low learning rate
+    # recompile
     model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy',
                   metrics=metrics)

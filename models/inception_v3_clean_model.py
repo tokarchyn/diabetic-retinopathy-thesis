@@ -4,12 +4,12 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.models import Sequential
 from tensorflow.keras import Model
 
+# Get Inception V3 model without fine tuning
 def get_inception_v3_clean(class_number, input_shape, metrics, optimizer, activation='relu', kernel_reg=None, bias_reg=None):
     base_model = InceptionV3(weights=None,
                              include_top=False,
                              input_shape=input_shape)
     x = base_model.output
-    # x = Dropout(0.5)(x)
     x = Flatten()(x)
     x = Dense(256, activation=activation,
                     kernel_regularizer=kernel_reg,

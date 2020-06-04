@@ -1,7 +1,6 @@
-# Modified official FBetaScore to be able to save scores for each category separetely in tf 2.0
-
 import tensorflow as tf
 
+# Modified official tensorflow FBetaScore to be able to save scores for each category separetely in tf 2.0
 class FBetaScore(tf.keras.metrics.Metric):
     """Computes F-Beta score.
     It is the weighted harmonic mean of precision

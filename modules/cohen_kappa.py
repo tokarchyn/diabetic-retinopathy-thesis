@@ -3,6 +3,8 @@ import numpy as np
 import tensorflow.keras.backend as K
 from tensorflow.keras.metrics import Metric
 
+# We used the old version of tensorflow addons package that has some limitations, thats why we copy CohenKappa from newer version
+# Source: https://github.com/tensorflow/addons/blob/v0.9.1/tensorflow_addons/metrics/cohens_kappa.py
 class CohenKappa(Metric):
 
     def __init__(

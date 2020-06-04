@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import *
 from tensorflow.keras import Model
 
+# Get EfficientNetB6 model, is available only from tensorflow version > 2.2
 def get_efficient(train_ds, train_steps, class_number, weights, freeze_layers_number, input_shape, metrics, optimizer, activation='relu', kernel_reg=None, bias_reg=None):
     base_model = tf.keras.applications.EfficientNetB6(
         include_top=False, weights='imagenet', input_shape=input_shape)

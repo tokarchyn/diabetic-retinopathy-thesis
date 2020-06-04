@@ -102,12 +102,10 @@ def prepare_data(dataframe_path, base_image_dir, quality_dataset_path=None, bala
     df = load_df(dataframe_path, base_image_dir)
     df = remove_unexist(df, base_image_dir)
     df = shuffle(df)
-    # df = shrink_dataset(df, 1000)
 
     train_df, val_df = train_val_split(df)
     if quality_dataset_path is not None:
         train_df = exclude_by_quality(train_df, quality_dataset_path)
-    # take some samples from each category
 
     if balance_mode == 'max':
         train_df = balance_with_mode(train_df, mode='max') # take the same number of samples as majority category has
@@ -129,10 +127,11 @@ def decode_img(img, img_size):
     # convert the compressed string to a 3D uint8 tensor
     img = tf.image.decode_jpeg(img, channels=3)
     # Use `convert_image_dtype` to convert to floats in the [0,1] range.
-    # img = tf.image.convert_image_dtype(img, tf.float32)
+    img = tf.image.convert_image_dtype(img, tf.float32)
     # resize the image to the desired size.
     img = tf.image.resize(img, [img_size, img_size])
-    img = tf.keras.applications.inception_v3.preprocess_input(img)
+    # if you uncomment the next line consider to remove converting image type
+    # img = tf.keras.applications.inception_v3.preprocess_input(img)
     return img
 
 CLASS_INDEXES = [0, 1, 2, 3, 4]

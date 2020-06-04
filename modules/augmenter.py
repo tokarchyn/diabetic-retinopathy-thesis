@@ -20,7 +20,7 @@ def apply_flip(x):
 
 
 def apply_zoom(x, img_size):
-    # Generate 20 crop settings, ranging from a 1% to 10% crop.
+    # Generate 10 crop settings, ranging from a 1% to 10% crop.
     scales = list(np.arange(0.9, 1, 0.01))
     boxes = np.zeros((len(scales), 4))
 
@@ -64,8 +64,6 @@ def augment(dataset, img_size, flip=True, rotate=True, hue=True, saturation=True
 
     def augment_map(img, level, aug_fun):
         return (aug_fun(img), level)
-        # return (tf.cond(tf.math.argmax(level, axis = 0) == 0, lambda: img, lambda: aug_fun(img)), level)
-        # choice = tf.random.uniform(shape=[], minval=0., maxval=1., dtype=tf.float32)
 
     # Add the augmentations to the dataset
     for f in augmentations:

@@ -4,7 +4,7 @@ from tensorflow.keras.models import Sequential
 
 def get_all_cnn_model(input_shape, class_number, metrics, optimizer, activation='relu', kernel_reg=None, bias_reg=None):
     if kernel_reg is not None or bias_reg is not None:
-        raise AttributeError('Not supported yet')
+        raise AttributeError('Not supported')
 
     model = Sequential()
 

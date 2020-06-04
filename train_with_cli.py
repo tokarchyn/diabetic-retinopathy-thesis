@@ -25,7 +25,6 @@ from models.inception_v3_clean_model import get_inception_v3_clean
 from models.efficient_model import get_efficient
 from models.vgg_16_model import get_vgg_model
 
-# %precision % .5f
 np.set_printoptions(suppress=True, precision=5)
 
 # Define constants
@@ -38,39 +37,52 @@ def init_env():
     args = {}
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image_dir', type=str, default='train_processed')
+    parser.add_argument('--image_dir', type=str, default='train_processed', 
+                        help='directory path with images')
     parser.add_argument('--dataframe_path', type=str,
-                        default='data/train_labels_full.csv')
+                        default='data/train_labels_full.csv',
+                        help='path to .csv file with image labels')
     parser.add_argument('--quality_dataset_path',
-                        type=str, default=None)
+                        type=str, default=None,
+                        help='path to .csv file with quality of images. From 0 (the best) to 2(the worse). Images with the quality level of 2 will be skipped')
     parser.add_argument('--experiments_dir', type=str,
-                        default='experiments')
+                        default='experiments',
+                        help='directory path to where plots and model weights will be saved')
     parser.add_argument('--gpu_id', type=str,
-                        default=None)
+                        default=None,
+                        help='id of gpu to use')
     parser.add_argument('--model', type=str,
-                        default='vgg')
+                        default='vgg',
+                        help='architecture of model. Available options: vgg, inception, alex, all_cnn, inception_clean, efficient')
     parser.add_argument('--img_size', type=int,
-                        default=512)
+                        default=512,
+                        help='images will be resized to this size')
     parser.add_argument('--batch_size', type=int,
                         default=16)
 
-    parser.add_argument('--cyclic_lr', action='store_true')
+    parser.add_argument('--cyclic_lr', action='store_true',
+                        help='use cyclic learning rate')
     parser.add_argument('--optimizer', type=str,
-                        default='adam')
+                        default='adam',
+                        help='optimizer. Available options: adam, sgd, rmsprop')
     parser.add_argument('--activation', type=str,
-                        default='leaky_relu')
+                        default='leaky_relu',
+                        help='activation function. Available options: leaky_relu, relu')
     parser.add_argument('--learning_rate', type=float,
                         default=0.000005)
     parser.add_argument('--momentum', type=float,
-                        default=0.9)
+                        default=0.9,
+                        help='momentum. Will be used only if optimizer is set to sgd')
 
-    parser.add_argument('--augment', action='store_true')
-    parser.add_argument('--bias_reg', action='store_true')
-    parser.add_argument('--kernel_reg', action='store_true')
+    parser.add_argument('--augment', action='store_true', help='enable augmentation')
+    parser.add_argument('--bias_reg', action='store_true', help='enable bias L2 regularization')
+    parser.add_argument('--kernel_reg', action='store_true', help='enable kernel L2 regularization')
     parser.add_argument('--balance_mode', type=str,
-                        default=None)
+                        default=None,
+                        help='resample mode. Max - oversampling every class to reach majority one. Min - undersampling each class to minority one. Integer value - get n from each class')
     parser.add_argument('--checkpoint_path', type=str,
-                        default=None)
+                        default=None,
+                        help='path to file with weights for model')
     parsed_args = parser.parse_args()
     args = vars(parsed_args)
 

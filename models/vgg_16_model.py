@@ -12,7 +12,6 @@ def get_vgg_model(input_shape, class_number, metrics, optimizer, activation='rel
     model.add(Conv2D(32, (3, 3), padding="same", activation=activation,                    
                      kernel_regularizer=kernel_reg,
                      bias_regularizer=bias_reg))
-    # model.add(MaxPooling2D((2, 2), strides=2))
     model.add(MaxPooling2D((3, 3), strides=2))
     model.add(BatchNormalization())
 
@@ -25,7 +24,6 @@ def get_vgg_model(input_shape, class_number, metrics, optimizer, activation='rel
     model.add(Conv2D(64, (3, 3), padding="same", activation=activation,
                      kernel_regularizer=kernel_reg,
                      bias_regularizer=bias_reg))
-    # model.add(MaxPooling2D((2, 2), strides=2))
     model.add(MaxPooling2D((3, 3), strides=2))
     model.add(BatchNormalization())
 
@@ -38,7 +36,6 @@ def get_vgg_model(input_shape, class_number, metrics, optimizer, activation='rel
     model.add(Conv2D(256, (3, 3), padding="same", activation=activation,
                      kernel_regularizer=kernel_reg,
                      bias_regularizer=bias_reg))
-    # model.add(MaxPooling2D((2, 2), strides=2))
     model.add(MaxPooling2D((3, 3), strides=2))
     model.add(BatchNormalization())
 
@@ -48,7 +45,6 @@ def get_vgg_model(input_shape, class_number, metrics, optimizer, activation='rel
     model.add(Conv2D(512, (3, 3), padding="same", activation=activation,
                      kernel_regularizer=kernel_reg,
                      bias_regularizer=bias_reg))
-    # model.add(MaxPooling2D((2, 2), strides=2))
     model.add(MaxPooling2D((3, 3), strides=2))
     model.add(BatchNormalization())
 
@@ -58,7 +54,6 @@ def get_vgg_model(input_shape, class_number, metrics, optimizer, activation='rel
     model.add(Conv2D(512, (3, 3), padding="same", activation=activation,
                      kernel_regularizer=kernel_reg,
                      bias_regularizer=bias_reg))
-    # model.add(MaxPooling2D((2, 2), strides=2))
     model.add(MaxPooling2D((3, 3), strides=2))
     model.add(BatchNormalization())
 
