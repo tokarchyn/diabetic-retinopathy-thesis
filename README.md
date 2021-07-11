@@ -1,6 +1,8 @@
 # Detecting Diabetic Retinopathy and Related Diagnoses Using Neural Networks
 
-In this project we apply convolutional neural network to classify diabetic retinopathy into 5 classes.  
+Diabetic retinopathy is a serious eye disease that can lead to total blindness. Early diagnostic significantly increases the chances of successful treatment of it. In this bachelor's thesis, we built a convolutional neural network to classify photos of eye fundus into 5 stages of diabetic retinopathy. Also, we introduced other studies related to automatic diabetic retinopathy diagnostic and the theory behind it.
+
+To read this thesis visit [Detecting diabetic retinopathy and related diagnoses using Neural Networks](https://dspace.cvut.cz/handle/10467/88256).  
 
 ## Instruction
 - Install python environment
